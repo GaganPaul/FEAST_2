@@ -3,7 +3,9 @@
 {% block title %}Donate Food - FEAST{% endblock %}
 
 {% block head %}
-<script src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY&libraries=places"></script>
+<!-- Replace Google Maps with Leaflet.js -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <link rel="stylesheet" href="{{ url_for('static', filename='css/donate.css') }}">
 {% endblock %}
 
@@ -11,17 +13,17 @@
 <section class="donation-section">
     <div class="container">
         <h2 class="section-title">Donate Food</h2>
-        
+
         <div class="form-container">
             <form method="POST" action="{{ url_for('donate_food') }}" enctype="multipart/form-data">
                 <div class="form-card">
                     <h3>Food Information</h3>
-                    
+
                     <div class="form-group">
                         <label for="food_name">Food Name/Description</label>
                         <input type="text" id="food_name" name="food_name" class="form-control" placeholder="e.g., Fresh Vegetables, Cooked Rice, Bread" required>
                     </div>
-                    
+
                     <div class="form-group">
                         <label for="food_type">Food Type</label>
                         <select id="food_type" name="food_type" class="form-control" required>
@@ -33,29 +35,29 @@
                             <option value="other">Other</option>
                         </select>
                     </div>
-                    
+
                     <div class="form-group">
                         <label for="quantity">Quantity</label>
                         <input type="text" id="quantity" name="quantity" class="form-control" placeholder="e.g., 5kg, 10 servings, 3 boxes" required>
                     </div>
-                    
+
                     <div class="form-group">
                         <label for="expiry_date">Expiry Date</label>
                         <input type="date" id="expiry_date" name="expiry_date" class="form-control" data-validate-future-date required>
                         <small class="form-text">For cooked food, please set expiry within 24-48 hours.</small>
                     </div>
-                    
+
                     <div class="form-group">
                         <label for="preparation_date">Preparation/Packaging Date</label>
                         <input type="date" id="preparation_date" name="preparation_date" class="form-control" required>
                     </div>
-                    
+
                     <div class="form-group">
                         <label for="food_image">Food Image</label>
                         <input type="file" id="food_image" name="food_image" class="form-control" accept="image/*">
                         <small class="form-text">Upload an image for AI food analysis</small>
                     </div>
-                    
+
                     <div id="foodAnalysisResult" class="analysis-result" style="display: none;">
                         <h4>Food Analysis Results</h4>
                         <div class="analysis-content">
@@ -75,26 +77,26 @@
                             <div id="nutritionContent"></div>
                         </div>
                     </div>
-                    
+
                     <div class="form-group">
                         <label for="special_instructions">Special Instructions</label>
                         <textarea id="special_instructions" name="special_instructions" class="form-control" rows="3" placeholder="Any storage instructions, allergen information, or other details"></textarea>
                     </div>
                 </div>
-                
+
                 <div class="form-card">
                     <h3>Pickup Information</h3>
-                    
+
                     <div class="form-group">
                         <label for="pickup_address">Pickup Address</label>
                         <textarea id="pickup_address" name="pickup_address" class="form-control" rows="3" required></textarea>
                     </div>
-                    
+
                     <div class="form-group">
                         <label for="pickup_date">Preferred Pickup Date</label>
                         <input type="date" id="pickup_date" name="pickup_date" class="form-control" required>
                     </div>
-                    
+
                     <div class="form-group time-range">
                         <label>Preferred Pickup Time Range</label>
                         <div class="time-inputs">
@@ -103,17 +105,17 @@
                             <input type="time" id="pickup_time_end" name="pickup_time_end" class="form-control" required>
                         </div>
                     </div>
-                    
+
                     <div class="form-group">
                         <label for="contact_name">Contact Person</label>
                         <input type="text" id="contact_name" name="contact_name" class="form-control" required>
                     </div>
-                    
+
                     <div class="form-group">
                         <label for="contact_phone">Contact Phone</label>
                         <input type="tel" id="contact_phone" name="contact_phone" class="form-control" required>
                     </div>
-                    
+
                     <div class="form-group location-group">
                         <label>Pickup Location</label>
                         <button type="button" id="getLocationBtn" class="btn btn-outline">Use Current Location</button>
@@ -121,13 +123,13 @@
                         <input type="hidden" id="latitude" name="latitude">
                         <input type="hidden" id="longitude" name="longitude">
                     </div>
-                    
-                    <div id="map" class="location-map"></div>
+
+                    <div id="map" class="location-map" style="height: 400px;"></div>
                 </div>
-                
+
                 <div class="form-card">
                     <h3>Donation Preferences</h3>
-                    
+
                     <div class="form-group">
                         <label for="preferred_kitchen">Preferred Community Kitchen (Optional)</label>
                         <select id="preferred_kitchen" name="preferred_kitchen" class="form-control">
@@ -137,7 +139,7 @@
                             <option value="kitchen3">Community Kitchen North</option>
                         </select>
                     </div>
-                    
+
                     <div class="form-group">
                         <label>Donation Acknowledgment</label>
                         <div class="checkbox-group">
@@ -145,7 +147,7 @@
                             <label for="anonymous">Make this donation anonymous</label>
                         </div>
                     </div>
-                    
+
                     <div class="form-group">
                         <label>Food Safety Declaration</label>
                         <div class="checkbox-group">
@@ -154,7 +156,7 @@
                         </div>
                     </div>
                 </div>
-                
+
                 <div class="form-actions">
                     <button type="submit" class="btn btn-primary">Submit Donation</button>
                     <a href="{{ url_for('donor_dashboard') }}" class="btn btn-outline">Cancel</a>
@@ -167,95 +169,156 @@
 
 {% block scripts %}
 <script>
-    // Initialize map
+    // Initialize Leaflet map
     let map;
-    let marker;
-    
+    let userMarker;
+    let kitchenMarkers = [];
+
     function initMap() {
-        // Default center (will be updated with user's location)
-        const defaultCenter = { lat: 20.5937, lng: 78.9629 }; // Center of India
-        
-        map = new google.maps.Map(document.getElementById("map"), {
-            zoom: 15,
-            center: defaultCenter,
-            mapTypeControl: false,
-            streetViewControl: false,
-            fullscreenControl: true,
-        });
-        
+        // Default center (Center of India)
+        map = L.map('map').setView([20.5937, 78.9629], 12);
+
+        // Add OpenStreetMap tiles
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            maxZoom: 18,
+        }).addTo(map);
+
+        // Define community kitchens (same as Donor Dashboard)
+        const kitchens = [
+            {name: "Community Kitchen East", position: [20.5937, 78.9729], needs: "Vegetables, Rice, Lentils"},
+            {name: "Community Kitchen West", position: [20.5837, 78.9529], needs: "Fruits, Bread, Milk"},
+            {name: "Community Kitchen North", position: [20.6037, 78.9629], needs: "Canned Goods, Spices, Oil"}
+        ];
+
         // Try to get user's current location
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(
                 (position) => {
-                    const pos = {
-                        lat: position.coords.latitude,
-                        lng: position.coords.longitude
-                    };
-                    
-                    map.setCenter(pos);
-                    
-                    // Create marker for user's position
-                    marker = new google.maps.Marker({
-                        position: pos,
-                        map: map,
-                        title: "Pickup Location",
+                    const userPosition = [position.coords.latitude, position.coords.longitude];
+                    map.setView(userPosition, 12);
+
+                    // Add user marker (blue circle, draggable)
+                    userMarker = L.circleMarker(userPosition, {
+                        radius: 8,
+                        fillColor: "#0000FF",
+                        color: "#0000FF",
+                        weight: 1,
+                        opacity: 1,
+                        fillOpacity: 0.8,
                         draggable: true
-                    });
-                    
+                    }).addTo(map)
+                    .bindPopup("Your Pickup Location");
+
                     // Update hidden form fields
-                    document.getElementById('latitude').value = pos.lat;
-                    document.getElementById('longitude').value = pos.lng;
-                    
+                    document.getElementById('latitude').value = position.coords.latitude;
+                    document.getElementById('longitude').value = position.coords.longitude;
+
                     // Update coordinates when marker is dragged
-                    marker.addListener('dragend', function() {
-                        const position = marker.getPosition();
-                        document.getElementById('latitude').value = position.lat();
-                        document.getElementById('longitude').value = position.lng();
+                    userMarker.on('dragend', function(e) {
+                        const position = userMarker.getLatLng();
+                        document.getElementById('latitude').value = position.lat;
+                        document.getElementById('longitude').value = position.lng;
+                    });
+
+                    // Add kitchen markers (red circles)
+                    kitchens.forEach(kitchen => {
+                        const marker = L.circleMarker(kitchen.position, {
+                            radius: 6,
+                            fillColor: "#FF0000",
+                            color: "#FF0000",
+                            weight: 1,
+                            opacity: 1,
+                            fillOpacity: 0.8
+                        }).addTo(map)
+                        .bindPopup(`
+                            <div class="map-info-window">
+                                <h3>${kitchen.name}</h3>
+                                <p><strong>Needs:</strong> ${kitchen.needs}</p>
+                            </div>
+                        `);
+                        kitchenMarkers.push(marker);
                     });
                 },
                 () => {
                     console.error("Error: The Geolocation service failed.");
+                    // Add kitchen markers even if user location fails
+                    kitchens.forEach(kitchen => {
+                        const marker = L.circleMarker(kitchen.position, {
+                            radius: 6,
+                            fillColor: "#FF0000",
+                            color: "#FF0000",
+                            weight: 1,
+                            opacity: 1,
+                            fillOpacity: 0.8
+                        }).addTo(map)
+                        .bindPopup(`
+                            <div class="map-info-window">
+                                <h3>${kitchen.name}</h3>
+                                <p><strong>Needs:</strong> ${kitchen.needs}</p>
+                            </div>
+                        `);
+                        kitchenMarkers.push(marker);
+                    });
                 }
             );
         } else {
             console.error("Error: Your browser doesn't support geolocation.");
+            // Add kitchen markers even if geolocation isn't supported
+            kitchens.forEach(kitchen => {
+                const marker = L.circleMarker(kitchen.position, {
+                    radius: 6,
+                    fillColor: "#FF0000",
+                    color: "#FF0000",
+                    weight: 1,
+                    opacity: 1,
+                    fillOpacity: 0.8
+                }).addTo(map)
+                .bindPopup(`
+                    <div class="map-info-window">
+                        <h3>${kitchen.name}</h3>
+                        <p><strong>Needs:</strong> ${kitchen.needs}</p>
+                    </div>
+                `);
+                kitchenMarkers.push(marker);
+            });
         }
     }
-    
+
     // Get location button
     document.getElementById('getLocationBtn').addEventListener('click', function() {
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(
                 (position) => {
-                    const pos = {
-                        lat: position.coords.latitude,
-                        lng: position.coords.longitude
-                    };
-                    
-                    map.setCenter(pos);
-                    
-                    if (marker) {
-                        marker.setPosition(pos);
+                    const pos = [position.coords.latitude, position.coords.longitude];
+                    map.setView(pos, 12);
+
+                    if (userMarker) {
+                        userMarker.setLatLng(pos);
                     } else {
-                        marker = new google.maps.Marker({
-                            position: pos,
-                            map: map,
-                            title: "Pickup Location",
+                        userMarker = L.circleMarker(pos, {
+                            radius: 8,
+                            fillColor: "#0000FF",
+                            color: "#0000FF",
+                            weight: 1,
+                            opacity: 1,
+                            fillOpacity: 0.8,
                             draggable: true
-                        });
-                        
+                        }).addTo(map)
+                        .bindPopup("Your Pickup Location");
+
                         // Update coordinates when marker is dragged
-                        marker.addListener('dragend', function() {
-                            const position = marker.getPosition();
-                            document.getElementById('latitude').value = position.lat();
-                            document.getElementById('longitude').value = position.lng();
+                        userMarker.on('dragend', function(e) {
+                            const position = userMarker.getLatLng();
+                            document.getElementById('latitude').value = position.lat;
+                            document.getElementById('longitude').value = position.lng;
                         });
                     }
-                    
+
                     // Update hidden form fields
-                    document.getElementById('latitude').value = pos.lat;
-                    document.getElementById('longitude').value = pos.lng;
-                    
+                    document.getElementById('latitude').value = position.coords.latitude;
+                    document.getElementById('longitude').value = position.coords.longitude;
+
                     // Show success message
                     document.getElementById('locationStatus').textContent = 'Location captured successfully!';
                     document.getElementById('locationStatus').className = 'success-text';
@@ -270,47 +333,47 @@
             alert("Geolocation is not supported by this browser.");
         }
     });
-    
+
     // Form validation
     document.querySelector('form').addEventListener('submit', function(e) {
         // Validate expiry date
         const expiryDate = new Date(document.getElementById('expiry_date').value);
         const today = new Date();
-        
+
         if (expiryDate < today) {
             e.preventDefault();
             alert('Expiry date must be in the future.');
             return;
         }
-        
+
         // Validate pickup date
         const pickupDate = new Date(document.getElementById('pickup_date').value);
-        
+
         if (pickupDate < today) {
             e.preventDefault();
             alert('Pickup date must be in the future.');
             return;
         }
-        
+
         // Validate time range
         const startTime = document.getElementById('pickup_time_start').value;
         const endTime = document.getElementById('pickup_time_end').value;
-        
+
         if (startTime >= endTime) {
             e.preventDefault();
             alert('End time must be after start time.');
             return;
         }
     });
-    
-    // Pre-fill preferred kitchen if provided in URL
+
+    // Pre-fill preferred kitchen if provided in URL and initialize map
     window.addEventListener('load', function() {
         const urlParams = new URLSearchParams(window.location.search);
         const kitchen = urlParams.get('kitchen');
-        
+
         if (kitchen) {
             const kitchenSelect = document.getElementById('preferred_kitchen');
-            
+
             // Find option with matching text and select it
             for (let i = 0; i < kitchenSelect.options.length; i++) {
                 if (kitchenSelect.options[i].text === kitchen) {
@@ -319,48 +382,48 @@
                 }
             }
         }
-        
-        // Initialize map
+
+        // Initialize Leaflet map
         initMap();
     });
-    
+
     // Food image analysis
     document.getElementById('food_image').addEventListener('change', function(e) {
         const file = e.target.files[0];
         if (!file) return;
-        
+
         // Show preview
         const reader = new FileReader();
         reader.onload = function(event) {
             document.getElementById('foodPreviewImage').src = event.target.result;
         }
         reader.readAsDataURL(file);
-        
+
         // Create form data for analysis
         const formData = new FormData();
         formData.append('food_image', file);
-        
+
         // Use today's date for preparation date
         const today = new Date();
-        const formattedDate = today.getDate().toString().padStart(2, '0') + '-' + 
-                             (today.getMonth() + 1).toString().padStart(2, '0') + '-' + 
+        const formattedDate = today.getDate().toString().padStart(2, '0') + '-' +
+                             (today.getMonth() + 1).toString().padStart(2, '0') + '-' +
                              today.getFullYear();
-        
+
         formData.append('prepared_at', formattedDate);
         formData.append('food_quantity', document.getElementById('quantity').value || '1 serving');
-        
+
         // Add food name if already entered by user
         if (document.getElementById('food_name').value) {
             formData.append('food_name', document.getElementById('food_name').value);
         }
-        
+
         // Show loading state
         document.getElementById('foodAnalysisResult').style.display = 'block';
         document.getElementById('detectedFood').textContent = 'Analyzing...';
         document.getElementById('foodFreshness').textContent = 'Checking...';
         document.getElementById('shelfLife').textContent = 'Calculating...';
         document.getElementById('expiryDate').textContent = 'Estimating...';
-        
+
         // Send to API for analysis
         fetch('/api/analyze-food', {
             method: 'POST',
@@ -372,15 +435,15 @@
                 alert('Error analyzing food: ' + data.error);
                 return;
             }
-            
+
             // Update form with detected food if not already filled
             if (!document.getElementById('food_name').value) {
                 document.getElementById('food_name').value = data.food_name;
             }
-            
+
             // Update analysis results
             document.getElementById('detectedFood').textContent = data.food_name;
-            
+
             // Update freshness info
             const qualityCheck = data.quality_check || {};
             if (qualityCheck.is_fresh === true) {
@@ -393,11 +456,11 @@
                 document.getElementById('foodFreshness').textContent = '⚠️ Uncertain: ' + (qualityCheck.reason || 'Unable to determine');
                 document.getElementById('foodFreshness').className = 'text-warning';
             }
-            
+
             // Update shelf life and expiry
             document.getElementById('shelfLife').textContent = data.shelf_life_days + ' days (' + data.shelf_life_hours + ' hours)';
             document.getElementById('expiryDate').textContent = data.expiry_date;
-            
+
             // If expiry date is calculated, update the form field
             if (data.expiry_date && data.expiry_date !== 'Unknown') {
                 try {
@@ -418,7 +481,7 @@
             document.getElementById('detectedFood').className = 'text-danger';
         });
     });
-    
+
     // Get nutritional information
     document.getElementById('getNutritionBtn').addEventListener('click', function() {
         const foodName = document.getElementById('detectedFood').textContent;
@@ -426,11 +489,11 @@
             alert('Please wait for food analysis to complete first.');
             return;
         }
-        
+
         // Show loading state
         document.getElementById('nutritionInfo').style.display = 'block';
         document.getElementById('nutritionContent').innerHTML = '<p>Loading nutritional information...</p>';
-        
+
         // Fetch nutritional info
         fetch('/api/nutritional-info', {
             method: 'POST',
@@ -445,11 +508,11 @@
                 document.getElementById('nutritionContent').innerHTML = `<p class="text-danger">${data.error}</p>`;
                 return;
             }
-            
+
             try {
                 // Parse nutrition info
                 const nutritionInfo = JSON.parse(data.nutrition_info);
-                
+
                 // Create HTML table for nutrition info
                 let nutritionHtml = `
                     <table class="nutrition-table">
@@ -481,7 +544,7 @@
                     <p><strong>Vitamins:</strong> ${nutritionInfo.vitamins.join(', ')}</p>
                     <p><strong>Minerals:</strong> ${nutritionInfo.minerals.join(', ')}</p>
                 `;
-                
+
                 document.getElementById('nutritionContent').innerHTML = nutritionHtml;
             } catch (e) {
                 console.error('Error parsing nutrition info:', e);

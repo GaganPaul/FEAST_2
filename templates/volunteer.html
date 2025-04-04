@@ -3,7 +3,8 @@
 {% block title %}Volunteer Dashboard - FEAST{% endblock %}
 
 {% block head %}
-<script src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY&libraries=places"></script>
+<!-- Replace Google Maps with Leaflet.js -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
 <link rel="stylesheet" href="{{ url_for('static', filename='css/volunteer.css') }}">
 {% endblock %}
 
@@ -17,7 +18,7 @@
                 <button id="stopTracking" class="btn btn-outline" style="display: none;">Stop Tracking</button>
             </div>
         </div>
-        
+
         <div class="dashboard-stats">
             <div class="stat-card">
                 <div class="stat-value">{{ tasks|length }}</div>
@@ -32,16 +33,16 @@
                 <div class="stat-label">Total Distance (km)</div>
             </div>
         </div>
-        
+
         <div class="dashboard-card">
             <h3>Your Location</h3>
             <div class="location-tracking">
                 <div id="locationIndicator" class="location-indicator location-inactive"></div>
                 <span id="trackingStatus">Location tracking is inactive</span>
             </div>
-            <div id="map"></div>
+            <div id="map" style="height: 400px;"></div>
         </div>
-        
+
         <div class="dashboard-card">
             <h3>Assigned Tasks</h3>
             {% if tasks %}
@@ -74,56 +75,44 @@
 {% endblock %}
 
 {% block scripts %}
+<!-- Add Leaflet.js JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script>
     // Initialize map
     let map;
     let marker;
     let watchId;
-    let directionsService;
-    let directionsRenderer;
     let currentPosition;
     let totalDistance = 0;
-    
+
     function initMap() {
-        // Default center (will be updated with user's location)
-        const defaultCenter = { lat: 20.5937, lng: 78.9629 }; // Center of India
-        
-        map = new google.maps.Map(document.getElementById("map"), {
-            zoom: 12,
-            center: defaultCenter,
-            mapTypeControl: true,
-            streetViewControl: false,
-            fullscreenControl: true,
-        });
-        
-        // Initialize directions service
-        directionsService = new google.maps.DirectionsService();
-        directionsRenderer = new google.maps.DirectionsRenderer({
-            map: map,
-            suppressMarkers: false
-        });
-        
+        // Default center (Center of India)
+        map = L.map('map').setView([20.5937, 78.9629], 12);
+
+        // Add OpenStreetMap tiles
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            maxZoom: 18,
+        }).addTo(map);
+
         // Try to get user's current location
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(
                 (position) => {
-                    const pos = {
-                        lat: position.coords.latitude,
-                        lng: position.coords.longitude
-                    };
-                    
+                    const pos = [position.coords.latitude, position.coords.longitude];
                     currentPosition = pos;
-                    map.setCenter(pos);
-                    
-                    // Create marker for volunteer's position
-                    marker = new google.maps.Marker({
-                        position: pos,
-                        map: map,
-                        title: "Your Location",
-                        icon: {
-                            url: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png"
-                        }
-                    });
+                    map.setView(pos, 12);
+
+                    // Create marker for volunteer's position (blue)
+                    marker = L.circleMarker(pos, {
+                        radius: 8,
+                        fillColor: "#0000FF",
+                        color: "#0000FF",
+                        weight: 1,
+                        opacity: 1,
+                        fillOpacity: 0.8
+                    }).addTo(map)
+                    .bindPopup("Your Location");
                 },
                 () => {
                     console.error("Error: The Geolocation service failed.");
@@ -133,7 +122,7 @@
             console.error("Error: Your browser doesn't support geolocation.");
         }
     }
-    
+
     // Start location tracking
     document.getElementById("startTracking").addEventListener("click", function() {
         if (navigator.geolocation) {
@@ -142,43 +131,41 @@
             document.getElementById("trackingStatus").textContent = "Location tracking is active";
             document.getElementById("startTracking").style.display = "none";
             document.getElementById("stopTracking").style.display = "inline-block";
-            
+
             // Start watching position
             watchId = navigator.geolocation.watchPosition(
                 (position) => {
-                    const pos = {
-                        lat: position.coords.latitude,
-                        lng: position.coords.longitude
-                    };
-                    
+                    const pos = [position.coords.latitude, position.coords.longitude];
+
                     // Calculate distance if we have a previous position
                     if (currentPosition) {
                         const distance = calculateDistance(
-                            currentPosition.lat, currentPosition.lng,
-                            pos.lat, pos.lng
+                            currentPosition[0], currentPosition[1],
+                            pos[0], pos[1]
                         );
                         totalDistance += distance;
                         document.getElementById("totalDistance").textContent = totalDistance.toFixed(2);
                     }
-                    
+
                     currentPosition = pos;
-                    
+
                     // Update marker position
                     if (marker) {
-                        marker.setPosition(pos);
+                        marker.setLatLng(pos);
                     } else {
-                        marker = new google.maps.Marker({
-                            position: pos,
-                            map: map,
-                            title: "Your Location",
-                            icon: {
-                                url: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png"
-                            }
-                        });
+                        marker = L.circleMarker(pos, {
+                            radius: 8,
+                            fillColor: "#0000FF",
+                            color: "#0000FF",
+                            weight: 1,
+                            opacity: 1,
+                            fillOpacity: 0.8
+                        }).addTo(map)
+                        .bindPopup("Your Location");
                     }
-                    
+
                     // Send location to server
-                    updateLocationOnServer(pos.lat, pos.lng);
+                    updateLocationOnServer(pos[0], pos[1]);
                 },
                 (error) => {
                     console.error("Error getting location:", error);
@@ -195,23 +182,23 @@
             alert("Geolocation is not supported by this browser.");
         }
     });
-    
+
     // Stop location tracking
     document.getElementById("stopTracking").addEventListener("click", stopLocationTracking);
-    
+
     function stopLocationTracking() {
         if (watchId) {
             navigator.geolocation.clearWatch(watchId);
             watchId = null;
         }
-        
+
         // Update UI
         document.getElementById("locationIndicator").className = "location-indicator location-inactive";
         document.getElementById("trackingStatus").textContent = "Location tracking is inactive";
         document.getElementById("startTracking").style.display = "inline-block";
         document.getElementById("stopTracking").style.display = "none";
     }
-    
+
     // Update location on server
     function updateLocationOnServer(lat, lng) {
         fetch('/api/update-location', {
@@ -232,92 +219,90 @@
             console.error('Error updating location:', error);
         });
     }
-    
+
     // Calculate distance between two points using Haversine formula
     function calculateDistance(lat1, lon1, lat2, lon2) {
         const R = 6371; // Radius of the earth in km
         const dLat = deg2rad(lat2 - lat1);
         const dLon = deg2rad(lon2 - lon1);
-        const a = 
+        const a =
             Math.sin(dLat/2) * Math.sin(dLat/2) +
-            Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * 
-            Math.sin(dLon/2) * Math.sin(dLon/2); 
-        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
+            Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
+            Math.sin(dLon/2) * Math.sin(dLon/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
         const distance = R * c; // Distance in km
         return distance;
     }
-    
+
     function deg2rad(deg) {
         return deg * (Math.PI/180);
     }
-    
+
     // Task management
     document.querySelectorAll('.start-task').forEach(button => {
         button.addEventListener('click', function() {
             const taskId = this.getAttribute('data-task-id');
             this.style.display = 'none';
             this.nextElementSibling.style.display = 'inline-block';
-            
+
             // Update task status on server (would be implemented in a real app)
             console.log('Started task:', taskId);
         });
     });
-    
+
     document.querySelectorAll('.complete-task').forEach(button => {
         button.addEventListener('click', function() {
             const taskCard = this.closest('.task-card');
             const statusElement = taskCard.querySelector('.task-status');
-            
+
             statusElement.className = 'task-status status-completed';
             statusElement.textContent = 'Completed';
-            
+
             this.disabled = true;
-            
+
             // Update completed tasks count
             const completedTasks = parseInt(document.getElementById('completedTasks').textContent);
             document.getElementById('completedTasks').textContent = completedTasks + 1;
-            
+
             // Update task status on server (would be implemented in a real app)
             const taskId = this.getAttribute('data-task-id');
             console.log('Completed task:', taskId);
         });
     });
-    
+
     // Navigation to task location
     document.querySelectorAll('.navigate-task').forEach(button => {
         button.addEventListener('click', function() {
             const locationAddress = this.getAttribute('data-location');
-            
+
             if (!currentPosition) {
                 alert('Your current location is not available. Please enable location tracking.');
                 return;
             }
-            
-            // Use Google Maps Directions service
-            const geocoder = new google.maps.Geocoder();
-            geocoder.geocode({ 'address': locationAddress }, function(results, status) {
-                if (status === 'OK') {
-                    const destinationLocation = results[0].geometry.location;
-                    
-                    directionsService.route({
-                        origin: currentPosition,
-                        destination: destinationLocation,
-                        travelMode: google.maps.TravelMode.DRIVING
-                    }, function(response, status) {
-                        if (status === 'OK') {
-                            directionsRenderer.setDirections(response);
-                        } else {
-                            alert('Directions request failed due to ' + status);
-                        }
-                    });
-                } else {
-                    alert('Geocode was not successful for the following reason: ' + status);
-                }
-            });
+
+            // For simplicity, we'll simulate geocoding by prompting for coordinates
+            // In a real app, you'd integrate a geocoding service (e.g., Nominatim for OpenStreetMap)
+            alert("Leaflet.js doesn't have built-in geocoding. Please provide coordinates for: " + locationAddress);
+            const lat = prompt("Enter latitude for " + locationAddress);
+            const lng = prompt("Enter longitude for " + locationAddress);
+
+            if (lat && lng) {
+                const destination = [parseFloat(lat), parseFloat(lng)];
+                const path = L.polyline([currentPosition, destination], {
+                    color: '#0000FF',
+                    weight: 3,
+                    opacity: 0.7
+                }).addTo(map);
+
+                map.fitBounds([currentPosition, destination]);
+                setTimeout(() => path.remove(), 5000); // Remove path after 5 seconds
+            } else {
+                alert("Navigation canceled. Please provide valid coordinates.");
+            }
         });
     });
-    
+
     // Initialize map when the page loads
-    window.onload = initMap;
+    window.addEventListener('load', initMap);
 </script>
 {% endblock %}
