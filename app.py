@@ -1,10 +1,21 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session, send_from_directory
 from flask_pymongo import PyMongo
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
 from bson.objectid import ObjectId
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
 import json
+import base64
+import io
+import re
+import logging
+from PIL import Image
+import requests
+
+# Set up logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 app.secret_key = 'feast_community_kitchen_network'
@@ -13,274 +24,699 @@ app.secret_key = 'feast_community_kitchen_network'
 app.config["MONGO_URI"] = "mongodb://localhost:27017/feast_db"
 mongo = PyMongo(app)
 
-# User roles
-ROLES = {
-    'donor': 'Donor',
-    'volunteer': 'Volunteer',
-    'kitchen': 'Community Kitchen',
-    'seeker': 'Food Seeker',
-    'admin': 'Administrator'
+# Configure file uploads
+app.config['UPLOAD_FOLDER'] = 'uploads'
+app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024  # 5MB max upload size
+app.config['ALLOWED_EXTENSIONS'] = {'jpg', 'jpeg', 'png', 'gif'}
+
+# Create upload folder if it doesn't exist
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+
+# Groq API configuration
+GROQ_API_KEY = "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"
+GROQ_VISION_MODEL = "llama-3.2-90b-vision-preview"
+GROQ_TEXT_MODEL = "llama-3.3-70b-versatile"
+
+# Shelf-life dictionary (in hours)
+food_shelf_life = {
+    "rice": 12, "dal": 10, "roti": 8, "curry": 8, "sambar": 10, "idli": 12, "dosa": 10,
+    "biryani": 12, "vegetables": 8, "milk": 6, "paneer": 6, "chicken": 12, "fish": 8,
+    "egg": 10, "fruit": 6, "salad": 6,
+    # Add more general food types
+    "pasta": 10, "soup": 12, "bread": 8, "canned soup": 72
 }
+
+# Helper function to check if file extension is allowed
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
+
+# Function to encode image in base64 (ensures JPEG format)
+def encode_image(image_file):
+    try:
+        img = Image.open(image_file)
+
+        # Convert to RGB if necessary
+        if img.mode in ("RGBA", "P"):
+            img = img.convert("RGB")
+
+        # Save as JPEG to a buffer
+        buffer = io.BytesIO()
+        img.save(buffer, format="JPEG")  # Force JPEG format
+        encoded = base64.b64encode(buffer.getvalue()).decode("utf-8")
+
+        logger.info(f"Image encoded successfully. Base64 length: {len(encoded)}")
+        return encoded
+    except Exception as e:
+        logger.error(f"Failed to process image: {str(e)}")
+        return None
+
+# Function to classify food from image
+def classify_food(base64_image):
+    if not base64_image:
+        logger.error("No image provided for classification")
+        return None
+
+    # Check for network connectivity
+    try:
+        # Try to connect to the Groq API
+        logger.info("Sending request to Groq API for food classification")
+        
+        # Create the request payload
+        payload = {
+            "messages": [
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": "Identify the food item in this image. Give just the name of the food."},
+                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}},
+                    ],
+                },
+            ],
+            "model": GROQ_VISION_MODEL
+        }
+        
+        # Log the request (without the full base64 image)
+        logger.info(f"Request to Groq API: {str(payload)[:500]}...")
+        
+        # Make the API call
+        response = requests.post(
+            "https://api.groq.co/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {GROQ_API_KEY}",
+                "Content-Type": "application/json"
+            },
+            json=payload,
+            timeout=10  # Shorter timeout to fail faster
+        )
+
+        # Log the response status
+        logger.info(f"Groq API response status: {response.status_code}")
+        
+        # Check for errors
+        if response.status_code != 200:
+            logger.error(f"Groq API error: {response.status_code} - {response.text}")
+            return None
+            
+        # Parse the response
+        result = response.json()
+        logger.info(f"Groq API response: {str(result)[:500]}...")
+        
+        # Extract the food item name
+        if 'choices' in result and len(result['choices']) > 0:
+            food_item = result["choices"][0]["message"]["content"].strip().lower()
+            logger.info(f"Detected Food Item: {food_item}")
+            return food_item
+        else:
+            logger.error("No choices in Groq API response")
+            return None
+            
+    except (requests.exceptions.RequestException, json.JSONDecodeError) as e:
+        logger.error(f"API error: {str(e)}")
+        return None
+    except Exception as e:
+        logger.error(f"Failed to classify food: {str(e)}")
+        return None
+
+# Function to check food quality
+def check_food_quality(base64_image):
+    if not base64_image:
+        return {"is_fresh": False, "confidence": 0, "reason": "No image provided"}
+
+    try:
+        # Try to connect to the Groq API
+        response = requests.post(
+            "https://api.groq.co/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {GROQ_API_KEY}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text",
+                             "text": "Analyze this food image and determine if the food appears fresh or stale/spoiled. Provide your assessment in JSON format with the following fields: is_fresh (boolean), confidence (percentage as integer), reason (brief explanation)."},
+                            {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}},
+                        ],
+                    },
+                ],
+                "model": GROQ_VISION_MODEL
+            },
+            timeout=10  # Shorter timeout to fail faster
+        )
+
+        # Check for errors
+        if response.status_code != 200:
+            logger.error(f"Groq API error: {response.status_code} - {response.text}")
+            return {"is_fresh": True, "confidence": 50, "reason": "Unable to analyze freshness due to API error. Assuming fresh."}
+            
+        result = response.json()
+        result_text = result["choices"][0]["message"]["content"].strip()
+        
+        # Try to extract JSON from the response
+        try:
+            # Look for JSON pattern in the response
+            json_match = re.search(r'\{.*\}', result_text, re.DOTALL)
+            if json_match:
+                result_json = json.loads(json_match.group(0))
+                logger.info(f"Food quality check result: {result_json}")
+                return result_json
+            else:
+                # If no JSON found, parse the text response
+                is_fresh = "spoiled" not in result_text.lower() and "stale" not in result_text.lower()
+                return {
+                    "is_fresh": is_fresh,
+                    "confidence": 70,
+                    "reason": result_text[:100]  # Truncate long responses
+                }
+        except json.JSONDecodeError:
+            # If JSON parsing fails, use a simple heuristic
+            is_fresh = "fresh" in result_text.lower() and "not spoiled" in result_text.lower()
+            return {
+                "is_fresh": is_fresh,
+                "confidence": 60,
+                "reason": "Based on text analysis"
+            }
+    except Exception as e:
+        logger.error(f"Failed to check food quality: {str(e)}")
+        # Return a default response assuming the food is fresh when API is unavailable
+        return {"is_fresh": True, "confidence": 50, "reason": f"Unable to analyze freshness due to network error: {str(e)}. Assuming fresh."}
+
+# Function to get nutrition information
+def get_nutrition(food_item):
+    if not food_item:
+        return "Error: No food item specified"
+    
+    # First try to get nutrition from a local database (mock implementation)
+    nutrition_db = {
+        "rice": {
+            "calories": "130 per serving",
+            "protein": "2.7 g",
+            "carbs": "28 g",
+            "fats": "0.3 g",
+            "fiber": "0.4 g",
+            "serving_size": "100 g",
+            "vitamins": ["B1", "B3", "B6"],
+            "minerals": ["manganese", "magnesium", "phosphorus"]
+        },
+        "dal": {
+            "calories": "116 per serving",
+            "protein": "9 g",
+            "carbs": "20 g",
+            "fats": "0.4 g",
+            "fiber": "8 g",
+            "serving_size": "100 g",
+            "vitamins": ["B1", "B9"],
+            "minerals": ["iron", "potassium", "magnesium"]
+        },
+        "bread": {
+            "calories": "265 per serving",
+            "protein": "9 g",
+            "carbs": "49 g",
+            "fats": "3.2 g",
+            "fiber": "2.7 g",
+            "serving_size": "100 g",
+            "vitamins": ["B1", "B2", "B3"],
+            "minerals": ["iron", "sodium", "calcium"]
+        },
+        "vegetables": {
+            "calories": "65 per serving",
+            "protein": "2.9 g",
+            "carbs": "13 g",
+            "fats": "0.3 g",
+            "fiber": "4 g",
+            "serving_size": "100 g",
+            "vitamins": ["A", "C", "K"],
+            "minerals": ["potassium", "magnesium", "calcium"]
+        },
+        "fruit": {
+            "calories": "60 per serving",
+            "protein": "0.8 g",
+            "carbs": "15 g",
+            "fats": "0.2 g",
+            "fiber": "2.5 g",
+            "serving_size": "100 g",
+            "vitamins": ["C", "A", "B6"],
+            "minerals": ["potassium", "magnesium", "copper"]
+        }
+    }
+    
+    # Check if we have the food in our local database
+    for key, value in nutrition_db.items():
+        if key in food_item.lower():
+            logger.info(f"Found nutrition info in local database for {food_item}")
+            return json.dumps(value)
+    
+    # If not in local database, try the Groq API
+    prompt = f"""
+    Provide detailed nutritional information for {food_item} in JSON format with the following structure:
+    {{
+        "calories": "X per serving",
+        "protein": "X g",
+        "carbs": "X g",
+        "fats": "X g",
+        "fiber": "X g",
+        "serving_size": "X g/ml",
+        "vitamins": ["vitamin A", "vitamin C", ...],
+        "minerals": ["calcium", "iron", ...]
+    }}
+    """
+
+    try:
+        response = requests.post(
+            "https://api.groq.co/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {GROQ_API_KEY}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "messages": [
+                    {"role": "system",
+                     "content": "You're a nutritional database expert. Provide accurate, detailed nutrition facts in JSON format only."},
+                    {"role": "user", "content": prompt},
+                ],
+                "model": GROQ_TEXT_MODEL
+            },
+            timeout=10  # Shorter timeout to fail faster
+        )
+
+        # Check for errors
+        if response.status_code != 200:
+            logger.error(f"Groq API error: {response.status_code} - {response.text}")
+            # Return generic nutrition info
+            return json.dumps({
+                "calories": "100-200 per serving (estimate)",
+                "protein": "5-10 g (estimate)",
+                "carbs": "15-25 g (estimate)",
+                "fats": "2-5 g (estimate)",
+                "fiber": "2-4 g (estimate)",
+                "serving_size": "100 g",
+                "vitamins": ["various vitamins"],
+                "minerals": ["various minerals"]
+            })
+            
+        result = response.json()
+        nutrition_text = result["choices"][0]["message"]["content"].strip()
+        
+        # Try to parse the response as JSON to ensure it's valid
+        try:
+            # Look for JSON pattern in the response
+            json_match = re.search(r'\{.*\}', nutrition_text, re.DOTALL)
+            if json_match:
+                json_str = json_match.group(0)
+                # Validate JSON by parsing it
+                json.loads(json_str)
+                return json_str
+            else:
+                return json.dumps({"error": "Could not parse nutrition information"})
+        except json.JSONDecodeError:
+            # If JSON parsing fails, return the text as is
+            return json.dumps({"error": "Failed to parse nutrition info", "text": nutrition_text[:200]})
+    except Exception as e:
+        logger.error(f"Failed to get nutrition info: {str(e)}")
+        # Return generic nutrition info when API is unavailable
+        return json.dumps({
+            "calories": "100-200 per serving (estimate)",
+            "protein": "5-10 g (estimate)",
+            "carbs": "15-25 g (estimate)",
+            "fats": "2-5 g (estimate)",
+            "fiber": "2-4 g (estimate)",
+            "serving_size": "100 g",
+            "vitamins": ["various vitamins"],
+            "minerals": ["various minerals"],
+            "note": "This is a generic estimate as the online nutrition database is currently unavailable."
+        })
+
+# Function to calculate shelf life
+def calculate_shelf_life(food_item, quantity="1 serving"):
+    if not food_item:
+        return {"days": 0, "hours": 0}
+    
+    # Extract quantity as a number if possible
+    quantity_num = 1
+    try:
+        quantity_num = int(re.search(r'\d+', quantity).group())
+    except (AttributeError, ValueError):
+        quantity_num = 1
+    
+    # Get base shelf life in hours
+    base_hours = food_shelf_life.get(food_item.lower(), 24)  # Default to 24 hours
+    
+    # Adjust based on quantity (larger quantities may spoil faster)
+    if quantity_num > 5:
+        adjusted_hours = max(base_hours - 2, 4)  # Reduce by 2 hours but minimum 4 hours
+    else:
+        adjusted_hours = base_hours
+    
+    return {
+        "days": adjusted_hours // 24,
+        "hours": adjusted_hours
+    }
 
 # Routes
 @app.route('/')
 def index():
     return render_template('index.html')
 
-# Authentication routes
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    if request.method == 'POST':
-        email = request.form.get('email')
-        password = request.form.get('password')
-        
-        user = mongo.db.users.find_one({'email': email})
-        
-        if user and check_password_hash(user['password'], password):
-            session['user_id'] = str(user['_id'])
-            session['name'] = user['name']
-            session['role'] = user['role']
-            
-            # Redirect based on role
-            if user['role'] == 'volunteer':
-                return redirect(url_for('volunteer_dashboard'))
-            elif user['role'] == 'kitchen':
-                return redirect(url_for('kitchen_dashboard'))
-            elif user['role'] == 'seeker':
-                return redirect(url_for('seeker_dashboard'))
-            elif user['role'] == 'donor':
-                return redirect(url_for('donor_dashboard'))
-            else:
-                return redirect(url_for('index'))
-        else:
-            flash('Invalid email or password', 'danger')
-    
-    return render_template('login.html')
+# Define user roles
+ROLES = {
+    'donor': 'Food Donor',
+    'kitchen': 'Community Kitchen',
+    'volunteer': 'Volunteer',
+    'seeker': 'Food Seeker'
+}
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
-        name = request.form.get('name')
-        email = request.form.get('email')
-        password = request.form.get('password')
-        role = request.form.get('role')
-        phone = request.form.get('phone')
-        address = request.form.get('address')
+        users = mongo.db.users
         
-        # Check if email already exists
-        if mongo.db.users.find_one({'email': email}):
-            flash('Email already registered', 'danger')
-            return redirect(url_for('register'))
+        # Check if username already exists
+        existing_user = users.find_one({'username': request.form['username']})
         
-        # Create new user
-        new_user = {
-            'name': name,
-            'email': email,
-            'password': generate_password_hash(password),
-            'role': role,
-            'phone': phone,
-            'address': address,
-            'created_at': datetime.now(),
-            'location': {
-                'type': 'Point',
-                'coordinates': [0, 0]  # Default coordinates, will be updated
+        if existing_user is None:
+            # Hash the password
+            hashed_password = generate_password_hash(request.form['password'])
+            
+            # Create new user
+            user_data = {
+                'username': request.form['username'],
+                'password': hashed_password,
+                'email': request.form['email'],
+                'role': request.form['role'],
+                'created_at': datetime.now()
             }
-        }
+            
+            # Add role-specific fields
+            if request.form['role'] == 'donor':
+                user_data.update({
+                    'name': request.form['name'],
+                    'phone': request.form['phone'],
+                    'address': request.form['address']
+                })
+            elif request.form['role'] == 'kitchen':
+                user_data.update({
+                    'kitchen_name': request.form['kitchen_name'],
+                    'contact_person': request.form['contact_person'],
+                    'phone': request.form['phone'],
+                    'address': request.form['address'],
+                    'capacity': request.form['capacity']
+                })
+            elif request.form['role'] == 'volunteer':
+                user_data.update({
+                    'name': request.form['name'],
+                    'phone': request.form['phone'],
+                    'availability': request.form['availability']
+                })
+            elif request.form['role'] == 'seeker':
+                user_data.update({
+                    'name': request.form['name'],
+                    'phone': request.form['phone'],
+                    'address': request.form['address'],
+                    'family_size': request.form['family_size']
+                })
+            
+            # Insert the user
+            users.insert_one(user_data)
+            
+            # Set session
+            session['username'] = request.form['username']
+            session['role'] = request.form['role']
+            
+            # Redirect based on role
+            if request.form['role'] == 'donor':
+                return redirect(url_for('donor_dashboard'))
+            elif request.form['role'] == 'kitchen':
+                return redirect(url_for('kitchen_dashboard'))
+            elif request.form['role'] == 'volunteer':
+                return redirect(url_for('volunteer_dashboard'))
+            elif request.form['role'] == 'seeker':
+                return redirect(url_for('seeker_dashboard'))
         
-        user_id = mongo.db.users.insert_one(new_user).inserted_id
-        
-        # Auto login after registration
-        session['user_id'] = str(user_id)
-        session['name'] = name
-        session['role'] = role
-        
-        flash('Registration successful!', 'success')
-        
-        # Redirect based on role
-        if role == 'volunteer':
-            return redirect(url_for('volunteer_dashboard'))
-        elif role == 'kitchen':
-            return redirect(url_for('kitchen_dashboard'))
-        elif role == 'seeker':
-            return redirect(url_for('seeker_dashboard'))
-        elif role == 'donor':
-            return redirect(url_for('donor_dashboard'))
-        else:
-            return redirect(url_for('index'))
+        # If user exists
+        flash('Username already exists')
+        return redirect(url_for('register'))
     
     return render_template('register.html', roles=ROLES)
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        users = mongo.db.users
+        
+        # Find the user
+        login_user = users.find_one({'username': request.form['username']})
+        
+        if login_user:
+            # Check password
+            if check_password_hash(login_user['password'], request.form['password']):
+                session['username'] = login_user['username']
+                session['role'] = login_user['role']
+                
+                # Redirect based on role
+                if login_user['role'] == 'donor':
+                    return redirect(url_for('donor_dashboard'))
+                elif login_user['role'] == 'kitchen':
+                    return redirect(url_for('kitchen_dashboard'))
+                elif login_user['role'] == 'volunteer':
+                    return redirect(url_for('volunteer_dashboard'))
+                elif login_user['role'] == 'seeker':
+                    return redirect(url_for('seeker_dashboard'))
+            
+            # Invalid password
+            flash('Invalid username/password combination')
+            return redirect(url_for('login'))
+        
+        # User doesn't exist
+        flash('Username not found')
+        return redirect(url_for('login'))
+    
+    return render_template('login.html')
 
 @app.route('/logout')
 def logout():
     session.clear()
-    flash('You have been logged out', 'info')
     return redirect(url_for('index'))
-
-# Dashboard routes
-@app.route('/volunteer')
-def volunteer_dashboard():
-    if 'user_id' not in session or session['role'] != 'volunteer':
-        flash('Please login as a volunteer', 'warning')
-        return redirect(url_for('login'))
-    
-    # Get assigned tasks
-    tasks = list(mongo.db.tasks.find({'volunteer_id': ObjectId(session['user_id'])}))
-    
-    return render_template('volunteer.html', tasks=tasks)
-
-@app.route('/kitchen')
-def kitchen_dashboard():
-    if 'user_id' not in session or session['role'] != 'kitchen':
-        flash('Please login as a community kitchen', 'warning')
-        return redirect(url_for('login'))
-    
-    # Get kitchen's food inventory
-    inventory = list(mongo.db.inventory.find({'kitchen_id': ObjectId(session['user_id'])}))
-    
-    return render_template('kitchen.html', inventory=inventory)
-
-@app.route('/seeker')
-def seeker_dashboard():
-    if 'user_id' not in session or session['role'] != 'seeker':
-        flash('Please login as a food seeker', 'warning')
-        return redirect(url_for('login'))
-    
-    # Get nearby volunteers and kitchens
-    volunteers = list(mongo.db.users.find({'role': 'volunteer'}))
-    kitchens = list(mongo.db.users.find({'role': 'kitchen'}))
-    
-    return render_template('seeker.html', volunteers=volunteers, kitchens=kitchens)
 
 @app.route('/donor')
 def donor_dashboard():
-    if 'user_id' not in session or session['role'] != 'donor':
-        flash('Please login as a donor', 'warning')
+    if 'username' not in session or session['role'] != 'donor':
         return redirect(url_for('login'))
     
-    # Get donor's donation history
-    donations = list(mongo.db.donations.find({'donor_id': ObjectId(session['user_id'])}))
+    # Get donor's donations
+    donations = list(mongo.db.donations.find({'donor': session['username']}))
     
-    return render_template('donor.html', donations=donations)
+    return render_template('donate.html', donations=donations)
 
-# API routes for location tracking
-@app.route('/api/update-location', methods=['POST'])
-def update_location():
-    if 'user_id' not in session:
-        return jsonify({'status': 'error', 'message': 'Not logged in'}), 401
-    
-    data = request.json
-    lat = data.get('latitude')
-    lng = data.get('longitude')
-    
-    if not lat or not lng:
-        return jsonify({'status': 'error', 'message': 'Invalid coordinates'}), 400
-    
-    # Update user location
-    mongo.db.users.update_one(
-        {'_id': ObjectId(session['user_id'])},
-        {'$set': {
-            'location': {
-                'type': 'Point',
-                'coordinates': [float(lng), float(lat)]
-            }
-        }}
-    )
-    
-    return jsonify({'status': 'success', 'message': 'Location updated'})
-
-@app.route('/api/volunteers-location')
-def get_volunteers_location():
-    volunteers = list(mongo.db.users.find(
-        {'role': 'volunteer'},
-        {'_id': 1, 'name': 1, 'location': 1}
-    ))
-    
-    # Convert ObjectId to string for JSON serialization
-    for volunteer in volunteers:
-        volunteer['_id'] = str(volunteer['_id'])
-    
-    return jsonify(volunteers)
-
-# Food donation and request routes
 @app.route('/donate', methods=['GET', 'POST'])
+@app.route('/donate-food', methods=['GET', 'POST'])
 def donate_food():
-    if 'user_id' not in session:
-        flash('Please login to donate food', 'warning')
+    if 'username' not in session or session['role'] != 'donor':
+        flash('Please login as a donor to donate food')
         return redirect(url_for('login'))
     
     if request.method == 'POST':
+        # Process donation form submission
         food_name = request.form.get('food_name')
         quantity = request.form.get('quantity')
         expiry_date = request.form.get('expiry_date')
         pickup_address = request.form.get('pickup_address')
+        preparation_date = request.form.get('preparation_date', '')
+        food_type = request.form.get('food_type', '')
         
+        # Handle image upload if present
+        food_image_url = None
+        if 'food_image' in request.files:
+            file = request.files['food_image']
+            if file and file.filename != '' and allowed_file(file.filename):
+                # Save the file
+                timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+                filename = secure_filename(f"{timestamp}_{file.filename}")
+                filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                file.save(filepath)
+                food_image_url = f"/uploads/{filename}"
+                
+                # Process the image for food analysis if food name not provided
+                if not food_name:
+                    base64_image = encode_image(file)
+                    detected_food = classify_food(base64_image)
+                    if detected_food:
+                        food_name = detected_food
+                
+                # Check food quality
+                base64_image = encode_image(file)
+                quality_result = check_food_quality(base64_image)
+                
+                # If food is not fresh, reject the donation
+                if quality_result and quality_result.get('is_fresh') is False:
+                    flash(f'Food appears to be stale or spoiled: {quality_result.get("reason", "Unknown reason")}')
+                    return redirect(url_for('donate_food'))
+        
+        # Create donation record
         donation = {
-            'donor_id': ObjectId(session['user_id']),
+            'donor': session['username'],
             'food_name': food_name,
+            'food_type': food_type,
             'quantity': quantity,
             'expiry_date': expiry_date,
+            'preparation_date': preparation_date,
             'pickup_address': pickup_address,
+            'food_image_url': food_image_url,
             'status': 'pending',
             'created_at': datetime.now()
         }
         
         mongo.db.donations.insert_one(donation)
-        
-        flash('Food donation registered successfully!', 'success')
+        flash('Food donation registered successfully!')
         return redirect(url_for('donor_dashboard'))
     
+    # For GET requests, show the donation form
     return render_template('donate.html')
 
-@app.route('/request-food', methods=['GET', 'POST'])
-def request_food():
-    if 'user_id' not in session:
-        flash('Please login to request food', 'warning')
+@app.route('/kitchen')
+def kitchen_dashboard():
+    if 'username' not in session or session['role'] != 'kitchen':
         return redirect(url_for('login'))
     
-    if request.method == 'POST':
-        food_type = request.form.get('food_type')
-        servings = request.form.get('servings')
-        delivery_address = request.form.get('delivery_address')
+    # Get kitchen's inventory
+    inventory = list(mongo.db.inventory.find({'kitchen': session['username']}))
+    
+    # Get kitchen's meal plans
+    meal_plans = list(mongo.db.meal_plans.find({'kitchen': session['username']}))
+    
+    return render_template('kitchen.html', inventory=inventory, meal_plans=meal_plans)
+
+@app.route('/volunteer')
+def volunteer_dashboard():
+    if 'username' not in session or session['role'] != 'volunteer':
+        return redirect(url_for('login'))
+    
+    # Get available pickups
+    pickups = list(mongo.db.pickups.find({'status': 'pending'}))
+    
+    # Get volunteer's assigned pickups
+    my_pickups = list(mongo.db.pickups.find({'volunteer': session['username']}))
+    
+    return render_template('volunteer.html', pickups=pickups, my_pickups=my_pickups)
+
+@app.route('/seeker')
+def seeker_dashboard():
+    if 'username' not in session or session['role'] != 'seeker':
+        return redirect(url_for('login'))
+    
+    # Get available meal plans
+    meal_plans = list(mongo.db.meal_plans.find({'status': 'available'}))
+    
+    # Get seeker's requests
+    my_requests = list(mongo.db.requests.find({'seeker': session['username']}))
+    
+    return render_template('seeker.html', meal_plans=meal_plans, my_requests=my_requests)
+
+# API for food analysis
+@app.route('/api/analyze-food', methods=['POST'])
+def analyze_food_api():
+    try:
+        if 'food_image' not in request.files:
+            return jsonify({'error': 'No file part'}), 400
         
-        food_request = {
-            'seeker_id': ObjectId(session['user_id']),
-            'food_type': food_type,
-            'servings': servings,
-            'delivery_address': delivery_address,
-            'status': 'pending',
-            'created_at': datetime.now()
+        file = request.files['food_image']
+        if file.filename == '':
+            return jsonify({'error': 'No selected file'}), 400
+        
+        if not allowed_file(file.filename):
+            return jsonify({'error': 'File type not allowed'}), 400
+        
+        # Get additional parameters
+        prepared_at = request.form.get('prepared_at', datetime.now().strftime('%d-%m-%Y'))
+        food_quantity = request.form.get('food_quantity', '1 serving')
+        food_name_override = request.form.get('food_name', '')  # Allow manual override
+        
+        logger.info(f"Processing food image: {file.filename}")
+        
+        # Process the image
+        base64_image = encode_image(file)
+        if not base64_image:
+            logger.error("Failed to encode image")
+            return jsonify({'error': 'Failed to process image'}), 500
+        
+        logger.info(f"Image encoded successfully, length: {len(base64_image)}")
+        
+        # Use provided food name if available, otherwise classify from image
+        food_name = None
+        if food_name_override:
+            food_name = food_name_override
+            logger.info(f"Using provided food name: {food_name}")
+        else:
+            # Classify food
+            food_name = classify_food(base64_image)
+            if not food_name:
+                logger.warning("Food classification failed, using generic food type")
+                food_name = "food item"  # Fallback to generic food item
+        
+        logger.info(f"Food classified as: {food_name}")
+        
+        # Check food quality
+        quality_check = check_food_quality(base64_image)
+        logger.info(f"Quality check result: {quality_check}")
+        
+        # Calculate shelf life
+        shelf_life = calculate_shelf_life(food_name, food_quantity)
+        logger.info(f"Calculated shelf life: {shelf_life}")
+        
+        # Calculate expiry date
+        try:
+            # Parse the prepared_at date in dd-mm-yyyy format
+            if '-' in prepared_at:
+                prepared_date = datetime.strptime(prepared_at, '%d-%m-%Y')
+            else:
+                # Fallback to current date if format is incorrect
+                prepared_date = datetime.now()
+                
+            expiry_date = prepared_date + timedelta(hours=shelf_life['hours'])
+            expiry_date_str = expiry_date.strftime('%d-%m-%Y %H:%M')
+        except Exception as e:
+            logger.error(f"Error calculating expiry date: {str(e)}")
+            expiry_date_str = "Unknown"
+        
+        # Return the analysis results
+        result = {
+            'food_name': food_name,
+            'quality_check': quality_check,
+            'shelf_life_days': shelf_life['days'],
+            'shelf_life_hours': shelf_life['hours'],
+            'prepared_at': prepared_at,
+            'expiry_date': expiry_date_str
         }
         
-        mongo.db.food_requests.insert_one(food_request)
-        
-        flash('Food request submitted successfully!', 'success')
-        return redirect(url_for('seeker_dashboard'))
+        logger.info(f"Analysis complete: {result}")
+        return jsonify(result)
     
-    return render_template('request_food.html')
+    except Exception as e:
+        logger.error(f"Error in food analysis: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
-# Task assignment for volunteers
-@app.route('/assign-task/<volunteer_id>', methods=['POST'])
-def assign_task(volunteer_id):
-    if 'user_id' not in session or session['role'] != 'admin':
-        return jsonify({'status': 'error', 'message': 'Unauthorized'}), 403
+# API for nutritional information
+@app.route('/api/nutritional-info', methods=['POST'])
+def nutritional_info_api():
+    try:
+        data = request.get_json()
+        if not data or 'food_name' not in data:
+            return jsonify({'error': 'Food name is required'}), 400
+        
+        food_name = data['food_name']
+        nutrition_info = get_nutrition(food_name)
+        
+        return jsonify({'nutrition_info': nutrition_info})
     
-    data = request.json
-    task_type = data.get('task_type')
-    description = data.get('description')
-    location = data.get('location')
-    
-    task = {
-        'volunteer_id': ObjectId(volunteer_id),
-        'task_type': task_type,
-        'description': description,
-        'location': location,
-        'status': 'assigned',
-        'created_at': datetime.now()
-    }
-    
-    mongo.db.tasks.insert_one(task)
-    
-    return jsonify({'status': 'success', 'message': 'Task assigned successfully'})
+    except Exception as e:
+        logger.error(f"Error getting nutritional info: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+# Serve uploaded files
+@app.route('/uploads/<filename>')
+def uploaded_file(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 if __name__ == '__main__':
-    app.run(debug=True, use_reloader=False)
+    app.run(debug=True, use_reloader=False, host='0.0.0.0', port=5000)

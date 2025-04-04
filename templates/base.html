@@ -17,7 +17,7 @@
             </div>
             <ul class="nav-links">
                 <li><a href="{{ url_for('index') }}">Home</a></li>
-                {% if 'user_id' in session %}
+                {% if 'username' in session %}
                     {% if session['role'] == 'volunteer' %}
                         <li><a href="{{ url_for('volunteer_dashboard') }}">Dashboard</a></li>
                     {% elif session['role'] == 'kitchen' %}

@@ -219,11 +219,36 @@
                 <label for="storageLocation">Storage Location</label>
                 <input type="text" id="storageLocation" class="form-control" required>
             </div>
+            <div class="form-group">
+                <label for="foodImage">Food Image</label>
+                <input type="file" id="foodImage" name="foodImage" class="form-control" accept="image/*">
+                <small class="form-text">Upload an image for AI food analysis</small>
+            </div>
+            
+            <div id="foodAnalysisResult" class="analysis-result" style="display: none;">
+                <h4>Food Analysis Results</h4>
+                <div class="analysis-content">
+                    <div class="food-preview">
+                        <img id="foodPreviewImage" src="" alt="Food preview">
+                    </div>
+                    <div class="analysis-details">
+                        <p><strong>Detected Food:</strong> <span id="detectedFood"></span></p>
+                        <p><strong>Freshness:</strong> <span id="foodFreshness"></span></p>
+                        <p><strong>Estimated Shelf Life:</strong> <span id="shelfLife"></span></p>
+                        <p><strong>Expiry Date:</strong> <span id="expiryDate"></span></p>
+                        <button type="button" id="getNutritionBtn" class="btn btn-sm btn-outline">View Nutritional Info</button>
+                    </div>
+                </div>
+                <div id="nutritionInfo" class="nutrition-info" style="display: none;">
+                    <h5>Nutritional Information</h5>
+                    <div id="nutritionContent"></div>
+                </div>
+            </div>
+            
             <button type="submit" class="btn btn-primary">Add Item</button>
         </form>
     </div>
 </div>
-{% endblock %}
 
 {% block scripts %}
 <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY&callback=initMap" async defer></script>
@@ -291,9 +316,184 @@
         // Close modal and reset form
         modal.style.display = "none";
         document.getElementById("addInventoryForm").reset();
+        document.getElementById("foodAnalysisResult").style.display = "none";
+        document.getElementById("nutritionInfo").style.display = "none";
         
         // Show success message (in a real app)
         alert("Inventory item added successfully!");
+    });
+    
+    // Food image analysis
+    document.getElementById('foodImage').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        // Show preview
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            document.getElementById('foodPreviewImage').src = event.target.result;
+        }
+        reader.readAsDataURL(file);
+        
+        // Create form data for analysis
+        const formData = new FormData();
+        formData.append('food_image', file);
+        
+        // Use today's date for preparation date
+        const today = new Date();
+        const formattedDate = today.getDate().toString().padStart(2, '0') + '-' + 
+                             (today.getMonth() + 1).toString().padStart(2, '0') + '-' + 
+                             today.getFullYear();
+        
+        formData.append('prepared_at', formattedDate);
+        formData.append('food_quantity', document.getElementById('quantity').value || '1 serving');
+        
+        // Add food name if already entered by user
+        if (document.getElementById('foodName').value) {
+            formData.append('food_name', document.getElementById('foodName').value);
+        }
+        
+        // Show loading state
+        document.getElementById('foodAnalysisResult').style.display = 'block';
+        document.getElementById('detectedFood').textContent = 'Analyzing...';
+        document.getElementById('foodFreshness').textContent = 'Checking...';
+        document.getElementById('shelfLife').textContent = 'Calculating...';
+        document.getElementById('expiryDate').textContent = 'Estimating...';
+        
+        // Send to API for analysis
+        fetch('/api/analyze-food', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert('Error analyzing food: ' + data.error);
+                return;
+            }
+            
+            // Update form with detected food if not already filled
+            if (!document.getElementById('foodName').value) {
+                document.getElementById('foodName').value = data.food_name;
+            }
+            
+            // Update analysis results
+            document.getElementById('detectedFood').textContent = data.food_name;
+            
+            // Update freshness info
+            const qualityCheck = data.quality_check || {};
+            if (qualityCheck.is_fresh === true) {
+                document.getElementById('foodFreshness').textContent = '✅ Fresh';
+                document.getElementById('foodFreshness').className = 'text-success';
+            } else if (qualityCheck.is_fresh === false) {
+                document.getElementById('foodFreshness').textContent = '❌ Not Fresh: ' + qualityCheck.reason;
+                document.getElementById('foodFreshness').className = 'text-danger';
+            } else {
+                document.getElementById('foodFreshness').textContent = '⚠️ Uncertain: ' + (qualityCheck.reason || 'Unable to determine');
+                document.getElementById('foodFreshness').className = 'text-warning';
+            }
+            
+            // Update shelf life and expiry
+            document.getElementById('shelfLife').textContent = data.shelf_life_days + ' days (' + data.shelf_life_hours + ' hours)';
+            document.getElementById('expiryDate').textContent = data.expiry_date;
+            
+            // If expiry date is calculated, update the form field
+            if (data.expiry_date && data.expiry_date !== 'Unknown') {
+                try {
+                    // Convert from dd-mm-yyyy HH:MM to yyyy-mm-dd for the input field
+                    const parts = data.expiry_date.split(' ')[0].split('-');
+                    const formattedDate = `${parts[2]}-${parts[1]}-${parts[0]}`;
+                    document.getElementById('expiryDate').value = formattedDate;
+                } catch (e) {
+                    console.error('Error formatting expiry date:', e);
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Failed to analyze food image. Please try again or enter food details manually.');
+            // Show a message in the analysis result area
+            document.getElementById('detectedFood').textContent = 'Analysis failed. Please enter food name manually.';
+            document.getElementById('detectedFood').className = 'text-danger';
+        });
+    });
+    
+    // Get nutritional information
+    document.getElementById('getNutritionBtn').addEventListener('click', function() {
+        const foodName = document.getElementById('detectedFood').textContent;
+        if (!foodName || foodName === 'Analyzing...') {
+            alert('Please wait for food analysis to complete first.');
+            return;
+        }
+        
+        // Show loading state
+        document.getElementById('nutritionInfo').style.display = 'block';
+        document.getElementById('nutritionContent').innerHTML = '<p>Loading nutritional information...</p>';
+        
+        // Fetch nutritional info
+        fetch('/api/nutritional-info', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ food_name: foodName })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                document.getElementById('nutritionContent').innerHTML = `<p class="text-danger">${data.error}</p>`;
+                return;
+            }
+            
+            try {
+                // Parse nutrition info
+                const nutritionInfo = JSON.parse(data.nutrition_info);
+                
+                // Create HTML table for nutrition info
+                let nutritionHtml = `
+                    <table class="nutrition-table">
+                        <tr>
+                            <td><strong>Calories:</strong></td>
+                            <td>${nutritionInfo.calories}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Protein:</strong></td>
+                            <td>${nutritionInfo.protein}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Carbs:</strong></td>
+                            <td>${nutritionInfo.carbs}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Fats:</strong></td>
+                            <td>${nutritionInfo.fats}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Fiber:</strong></td>
+                            <td>${nutritionInfo.fiber}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Serving Size:</strong></td>
+                            <td>${nutritionInfo.serving_size}</td>
+                        </tr>
+                    </table>
+                    <p><strong>Vitamins:</strong> ${nutritionInfo.vitamins.join(', ')}</p>
+                    <p><strong>Minerals:</strong> ${nutritionInfo.minerals.join(', ')}</p>
+                `;
+                
+                document.getElementById('nutritionContent').innerHTML = nutritionHtml;
+            } catch (e) {
+                console.error('Error parsing nutrition info:', e);
+                document.getElementById('nutritionContent').innerHTML = `
+                    <p>Nutritional Information for ${foodName}:</p>
+                    <pre>${data.nutrition_info}</pre>
+                `;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('nutritionContent').innerHTML = '<p class="text-danger">Failed to fetch nutritional information.</p>';
+        });
     });
     
     // Add meal plan form submission

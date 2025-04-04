@@ -11,6 +11,10 @@
             <input type="text" id="name" name="name" class="form-control" required>
         </div>
         <div class="form-group">
+            <label for="username">Username</label>
+            <input type="text" id="username" name="username" class="form-control" required>
+        </div>
+        <div class="form-group">
             <label for="email">Email</label>
             <input type="email" id="email" name="email" class="form-control" required>
         </div>
@@ -31,6 +35,43 @@
                 {% endfor %}
             </select>
         </div>
+        
+        <!-- Kitchen-specific fields (shown only when kitchen role is selected) -->
+        <div id="kitchen-fields" style="display: none;">
+            <div class="form-group">
+                <label for="kitchen_name">Kitchen Name</label>
+                <input type="text" id="kitchen_name" name="kitchen_name" class="form-control">
+            </div>
+            <div class="form-group">
+                <label for="contact_person">Contact Person</label>
+                <input type="text" id="contact_person" name="contact_person" class="form-control">
+            </div>
+            <div class="form-group">
+                <label for="capacity">Daily Capacity (meals)</label>
+                <input type="number" id="capacity" name="capacity" class="form-control">
+            </div>
+        </div>
+        
+        <!-- Volunteer-specific fields -->
+        <div id="volunteer-fields" style="display: none;">
+            <div class="form-group">
+                <label for="availability">Availability</label>
+                <select id="availability" name="availability" class="form-control">
+                    <option value="weekdays">Weekdays</option>
+                    <option value="weekends">Weekends</option>
+                    <option value="both">Both</option>
+                </select>
+            </div>
+        </div>
+        
+        <!-- Seeker-specific fields -->
+        <div id="seeker-fields" style="display: none;">
+            <div class="form-group">
+                <label for="family_size">Family Size</label>
+                <input type="number" id="family_size" name="family_size" class="form-control">
+            </div>
+        </div>
+        
         <div class="form-group">
             <label for="password">Password</label>
             <input type="password" id="password" name="password" class="form-control" required>
@@ -55,6 +96,25 @@
         if (password !== confirmPassword) {
             e.preventDefault();
             alert('Passwords do not match!');
+        }
+    });
+    
+    // Show/hide role-specific fields
+    document.getElementById('role').addEventListener('change', function() {
+        const role = this.value;
+        
+        // Hide all role-specific fields first
+        document.getElementById('kitchen-fields').style.display = 'none';
+        document.getElementById('volunteer-fields').style.display = 'none';
+        document.getElementById('seeker-fields').style.display = 'none';
+        
+        // Show fields based on selected role
+        if (role === 'kitchen') {
+            document.getElementById('kitchen-fields').style.display = 'block';
+        } else if (role === 'volunteer') {
+            document.getElementById('volunteer-fields').style.display = 'block';
+        } else if (role === 'seeker') {
+            document.getElementById('seeker-fields').style.display = 'block';
         }
     });
 </script>

@@ -769,3 +769,79 @@ footer {
     background-color: #ffebee;
     color: #c62828;
 }
+
+/* Food Analysis Styles */
+.analysis-result {
+    background-color: #f9f9ff;
+    border-radius: 10px;
+    padding: 1.5rem;
+    margin: 1.5rem 0;
+    border: 1px solid #e0e0ff;
+}
+
+.analysis-content {
+    display: flex;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.food-preview {
+    flex: 0 0 200px;
+}
+
+.food-preview img {
+    width: 100%;
+    height: auto;
+    border-radius: 8px;
+    object-fit: cover;
+    max-height: 200px;
+}
+
+.analysis-details {
+    flex: 1;
+}
+
+.text-success {
+    color: #2e7d32;
+}
+
+.text-danger {
+    color: #c62828;
+}
+
+.text-warning {
+    color: #ff6f00;
+}
+
+.nutrition-info {
+    background-color: #fff;
+    border-radius: 8px;
+    padding: 1rem;
+    border: 1px solid #e0e0e0;
+}
+
+.nutrition-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 1rem;
+}
+
+.nutrition-table td {
+    padding: 0.5rem;
+    border-bottom: 1px solid #eee;
+}
+
+.nutrition-table tr:last-child td {
+    border-bottom: none;
+}
+
+@media (max-width: 768px) {
+    .analysis-content {
+        flex-direction: column;
+    }
+    
+    .food-preview {
+        flex: 0 0 auto;
+        max-width: 100%;
+    }
+}
