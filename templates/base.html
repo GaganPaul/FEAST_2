@@ -27,6 +27,9 @@
                     {% elif session['role'] == 'donor' %}
                         <li><a href="{{ url_for('donor_dashboard') }}">Dashboard</a></li>
                         <li><a href="{{ url_for('donate_food') }}">Donate Food</a></li>
+                    {% elif session['role'] == 'buyer' %}
+                        <li><a href="{{ url_for('buyer_dashboard') }}">Dashboard</a></li>
+                        <li><a href="{{ url_for('purchase_food') }}">Purchase Food</a></li>
                     {% endif %}
                     <li><a href="{{ url_for('logout') }}">Logout</a></li>
                 {% else %}

@@ -384,7 +384,8 @@ ROLES = {
     'donor': 'Food Donor',
     'kitchen': 'Community Kitchen',
     'volunteer': 'Volunteer',
-    'seeker': 'Food Seeker'
+    'seeker': 'Food Seeker',
+    'buyer': 'Food Buyer'
 }
 
 @app.route('/register', methods=['GET', 'POST'])
@@ -436,6 +437,12 @@ def register():
                     'address': request.form['address'],
                     'family_size': request.form['family_size']
                 })
+            elif request.form['role'] == 'buyer':
+                user_data.update({
+                    'name': request.form['name'],
+                    'phone': request.form['phone'],
+                    'address': request.form['address'],
+                })
             
             # Insert the user
             users.insert_one(user_data)
@@ -446,13 +453,15 @@ def register():
             
             # Redirect based on role
             if request.form['role'] == 'donor':
-                return redirect(url_for('donor'))
+                return redirect(url_for('donor_dashboard'))
             elif request.form['role'] == 'kitchen':
                 return redirect(url_for('kitchen_dashboard'))
             elif request.form['role'] == 'volunteer':
                 return redirect(url_for('volunteer_dashboard'))
             elif request.form['role'] == 'seeker':
                 return redirect(url_for('seeker_dashboard'))
+            elif request.form['role'] == 'buyer':
+                return redirect(url_for('buyer_dashboard'))
         
         # If user exists
         flash('Username already exists')
@@ -477,13 +486,15 @@ def login():
                 
                 # Redirect based on role
                 if login_user['role'] == 'donor':
-                    return redirect(url_for('donor'))
+                    return redirect(url_for('donor_dashboard'))
                 elif login_user['role'] == 'kitchen':
                     return redirect(url_for('kitchen_dashboard'))
                 elif login_user['role'] == 'volunteer':
                     return redirect(url_for('volunteer_dashboard'))
                 elif login_user['role'] == 'seeker':
                     return redirect(url_for('seeker_dashboard'))
+                elif login_user['role'] == 'buyer':
+                    return redirect(url_for('buyer_dashboard'))
             
             # Invalid password
             flash('Invalid username/password combination')
@@ -510,7 +521,6 @@ def donor_dashboard():
     
     return render_template('donor.html', donations=donations)
 
-# @app.route('/donate', methods=['GET', 'POST'])
 @app.route('/donate-food', methods=['GET', 'POST'])
 def donate_food():
     if 'username' not in session or session['role'] != 'donor':
@@ -570,7 +580,7 @@ def donate_food():
         
         mongo.db.donations.insert_one(donation)
         flash('Food donation registered successfully!')
-        return redirect(url_for('donor'))
+        return redirect(url_for('donor_dashboard'))
     
     # For GET requests, show the donation form
     return render_template('donate.html')
@@ -613,6 +623,19 @@ def seeker_dashboard():
     my_requests = list(mongo.db.requests.find({'seeker': session['username']}))
     
     return render_template('seeker.html', meal_plans=meal_plans, my_requests=my_requests)
+
+@app.route('/buyer')
+def buyer_dashboard():
+    if 'username' not in session or session['role'] != 'buyer':
+        return redirect(url_for('login'))
+    
+    # Get available meal plans
+    meal_plans = list(mongo.db.meal_plans.find({'status': 'available'}))
+    
+    # Get buyer's requests
+    my_requests = list(mongo.db.requests.find({'buyer': session['username']}))
+    
+    return render_template('buyer.html', meal_plans=meal_plans, my_requests=my_requests)
 
 @app.route('/request-food', methods=['GET', 'POST'])
 def request_food():
@@ -830,6 +853,124 @@ def get_volunteer_locations():
 def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
+@app.route('/purchase-food', methods=['GET', 'POST'])
+def purchase_food():
+    if 'username' not in session or session['role'] != 'buyer':
+        flash('Please login as a buyer to purchase food')
+        return redirect(url_for('login'))
+    
+    meal_id = request.args.get('meal_id')
+    
+    if request.method == 'POST':
+        # Process purchase form submission
+        meal_id = request.form.get('meal_id')
+        quantity = request.form.get('quantity')
+        pickup_date = request.form.get('pickup_date')
+        pickup_time_start = request.form.get('pickup_time_start')
+        pickup_time_end = request.form.get('pickup_time_end')
+        contact_name = request.form.get('contact_name')
+        contact_phone = request.form.get('contact_phone')
+        special_instructions = request.form.get('special_instructions', '')
+        payment_method = request.form.get('payment_method')
+        
+        # Get the meal details
+        meal = mongo.db.meal_plans.find_one({'_id': ObjectId(meal_id)})
+        
+        if not meal:
+            flash('Food item not found')
+            return redirect(url_for('purchase_food'))
+        
+        # Check if quantity is available
+        if int(quantity) > meal.get('available_quantity', 0):
+            flash('Requested quantity is not available')
+            return redirect(url_for('purchase_food', meal_id=meal_id))
+        
+        # Calculate total price
+        total_price = int(quantity) * meal.get('price', 0)
+        
+        # Create purchase record
+        purchase = {
+            'buyer': session['username'],
+            'meal_id': ObjectId(meal_id),
+            'food_name': meal.get('name'),
+            'quantity': quantity,
+            'price': total_price,
+            'pickup_date': pickup_date,
+            'pickup_time_start': pickup_time_start,
+            'pickup_time_end': pickup_time_end,
+            'contact_name': contact_name,
+            'contact_phone': contact_phone,
+            'special_instructions': special_instructions,
+            'payment_method': payment_method,
+            'seller': meal.get('seller', 'Unknown'),
+            'pickup_address': meal.get('location', ''),
+            'status': 'pending',
+            'created_at': datetime.now()
+        }
+        
+        # Insert the purchase record
+        mongo.db.purchases.insert_one(purchase)
+        
+        # Update meal plan available quantity
+        new_quantity = meal.get('available_quantity', 0) - int(quantity)
+        mongo.db.meal_plans.update_one(
+            {'_id': ObjectId(meal_id)},
+            {'$set': {'available_quantity': new_quantity}}
+        )
+        
+        flash('Food purchase request submitted successfully!')
+        return redirect(url_for('buyer_dashboard'))
+    
+    # For GET requests
+    if meal_id:
+        # Show purchase form for specific meal
+        meal = mongo.db.meal_plans.find_one({'_id': ObjectId(meal_id)})
+        if not meal:
+            flash('Food item not found')
+            return redirect(url_for('purchase_food'))
+        
+        return render_template('purchase_food.html', meal=meal)
+    else:
+        # Show list of available meals
+        meal_plans = list(mongo.db.meal_plans.find({'status': 'available', 'available_quantity': {'$gt': 0}}))
+        return render_template('purchase_food.html', meal_plans=meal_plans)
+
+@app.route('/cancel-purchase/<purchase_id>', methods=['POST'])
+def cancel_purchase(purchase_id):
+    if 'username' not in session:
+        return jsonify({'success': False, 'message': 'You must be logged in to cancel a purchase'}), 401
+    
+    try:
+        # Find the purchase
+        purchase = mongo.db.purchases.find_one({'_id': ObjectId(purchase_id)})
+        
+        if not purchase:
+            return jsonify({'success': False, 'message': 'Purchase not found'}), 404
+        
+        # Check if user owns this purchase
+        if purchase['buyer'] != session['username']:
+            return jsonify({'success': False, 'message': 'You can only cancel your own purchases'}), 403
+        
+        # Check if purchase is in a cancellable state
+        if purchase['status'] != 'pending':
+            return jsonify({'success': False, 'message': 'Only pending purchases can be cancelled'}), 400
+        
+        # Update purchase status
+        mongo.db.purchases.update_one(
+            {'_id': ObjectId(purchase_id)},
+            {'$set': {'status': 'cancelled'}}
+        )
+        
+        # Return quantity to meal plan
+        mongo.db.meal_plans.update_one(
+            {'_id': purchase['meal_id']},
+            {'$inc': {'available_quantity': int(purchase['quantity'])}}
+        )
+        
+        return jsonify({'success': True, 'message': 'Purchase cancelled successfully'})
+    
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True, use_reloader=False, host='0.0.0.0', port=5000)

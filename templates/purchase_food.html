@@ -1,0 +1,229 @@
+{% extends 'base.html' %}
+
+{% block title %}Purchase Food - FEAST{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/purchase.css') }}">
+{% endblock %}
+
+{% block content %}
+<section class="purchase-section">
+    <div class="container">
+        <h2 class="section-title">Purchase Food</h2>
+
+        <div class="purchase-container">
+            {% if meal %}
+                <div class="food-details-card">
+                    <div class="food-image">
+                        {% if meal.image_url %}
+                            <img src="{{ meal.image_url }}" alt="{{ meal.name }}">
+                        {% else %}
+                            <div class="placeholder-image">
+                                <i class="fas fa-utensils"></i>
+                            </div>
+                        {% endif %}
+                    </div>
+                    <div class="food-info">
+                        <h3>{{ meal.name }}</h3>
+                        <p class="food-description">{{ meal.description }}</p>
+                        <div class="food-meta">
+                            <p><strong>Price:</strong> ₹{{ meal.price }}</p>
+                            <p><strong>Quantity:</strong> {{ meal.quantity }}</p>
+                            <p><strong>Expiry Date:</strong> {{ meal.expiry_date }}</p>
+                            <p><strong>Seller:</strong> {{ meal.seller }}</p>
+                            <p><strong>Location:</strong> {{ meal.location }}</p>
+                        </div>
+                        
+                        <div class="nutrition-info">
+                            <h4>Nutritional Information</h4>
+                            <div class="nutrition-details">
+                                {% if meal.nutrition %}
+                                    {{ meal.nutrition|safe }}
+                                {% else %}
+                                    <p>Nutritional information not available for this item.</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="purchase-form-card">
+                    <h3>Complete Your Purchase</h3>
+                    <form method="POST" action="{{ url_for('purchase_food') }}">
+                        <input type="hidden" name="meal_id" value="{{ meal._id }}">
+                        
+                        <div class="form-group">
+                            <label for="quantity">Quantity</label>
+                            <input type="number" id="quantity" name="quantity" class="form-control" min="1" max="{{ meal.available_quantity }}" value="1" required>
+                            <small class="form-text">Maximum available: {{ meal.available_quantity }}</small>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="pickup_date">Preferred Pickup Date</label>
+                            <input type="date" id="pickup_date" name="pickup_date" class="form-control" required>
+                            <small class="form-text">Must be before expiry date: {{ meal.expiry_date }}</small>
+                        </div>
+                        
+                        <div class="form-group time-range">
+                            <label>Preferred Pickup Time Range</label>
+                            <div class="time-inputs">
+                                <input type="time" id="pickup_time_start" name="pickup_time_start" class="form-control" required>
+                                <span>to</span>
+                                <input type="time" id="pickup_time_end" name="pickup_time_end" class="form-control" required>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="contact_name">Contact Person</label>
+                            <input type="text" id="contact_name" name="contact_name" class="form-control" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="contact_phone">Contact Phone</label>
+                            <input type="tel" id="contact_phone" name="contact_phone" class="form-control" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="special_instructions">Special Instructions (Optional)</label>
+                            <textarea id="special_instructions" name="special_instructions" class="form-control" rows="3" placeholder="Any special requests or notes for the seller"></textarea>
+                        </div>
+                        
+                        <div class="order-summary">
+                            <h4>Order Summary</h4>
+                            <div class="summary-item">
+                                <span>Item Price:</span>
+                                <span>₹{{ meal.price }}</span>
+                            </div>
+                            <div class="summary-item">
+                                <span>Quantity:</span>
+                                <span id="summary-quantity">1</span>
+                            </div>
+                            <div class="summary-item total">
+                                <span>Total:</span>
+                                <span id="summary-total">₹{{ meal.price }}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="payment-options">
+                            <h4>Payment Method</h4>
+                            <div class="radio-group">
+                                <input type="radio" id="pay_cash" name="payment_method" value="cash" checked>
+                                <label for="pay_cash">Pay at Pickup (Cash)</label>
+                            </div>
+                            <div class="radio-group">
+                                <input type="radio" id="pay_online" name="payment_method" value="online">
+                                <label for="pay_online">Pay Online (UPI/Card)</label>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Terms and Conditions</label>
+                            <div class="checkbox-group">
+                                <input type="checkbox" id="terms_agreement" name="terms_agreement" required>
+                                <label for="terms_agreement">I agree to the terms and conditions for purchasing food items.</label>
+                            </div>
+                        </div>
+                        
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">Confirm Purchase</button>
+                            <a href="{{ url_for('buyer_dashboard') }}" class="btn btn-outline">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            {% else %}
+                <div class="food-items-list">
+                    <h3>Available Food Items</h3>
+                    
+                    {% if meal_plans %}
+                        <div class="food-items-grid">
+                            {% for meal in meal_plans %}
+                                <div class="food-item-card">
+                                    <div class="food-item-image">
+                                        {% if meal.image_url %}
+                                            <img src="{{ meal.image_url }}" alt="{{ meal.name }}">
+                                        {% else %}
+                                            <div class="placeholder-image">
+                                                <i class="fas fa-utensils"></i>
+                                            </div>
+                                        {% endif %}
+                                        <span class="food-item-price">₹{{ meal.price }}</span>
+                                    </div>
+                                    <div class="food-item-details">
+                                        <h4 class="food-item-title">{{ meal.name }}</h4>
+                                        <p class="food-item-description">{{ meal.description }}</p>
+                                        <div class="food-item-meta">
+                                            <span><i class="fas fa-calendar"></i> Expires: {{ meal.expiry_date }}</span>
+                                            <span><i class="fas fa-weight"></i> Quantity: {{ meal.quantity }}</span>
+                                        </div>
+                                        <div class="food-item-actions">
+                                            <a href="{{ url_for('purchase_food', meal_id=meal._id) }}" class="btn btn-sm btn-primary">Purchase</a>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="empty-state">
+                            <div class="empty-icon">
+                                <i class="fas fa-shopping-basket"></i>
+                            </div>
+                            <h4>No Food Items Available</h4>
+                            <p>There are currently no food items available for purchase. Please check back later.</p>
+                            <a href="{{ url_for('buyer_dashboard') }}" class="btn btn-primary">Back to Dashboard</a>
+                        </div>
+                    {% endif %}
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Update order summary when quantity changes
+    document.getElementById('quantity').addEventListener('input', function() {
+        const quantity = parseInt(this.value) || 1;
+        {% if meal %}
+        const price = {{ meal.price }};
+        {% else %}
+        const price = 0;
+        {% endif %}
+        const total = price * quantity;
+        
+        document.getElementById('summary-quantity').textContent = quantity;
+        document.getElementById('summary-total').textContent = '₹' + total;
+    });
+    
+    // Set minimum date for pickup to today
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    const todayStr = `${yyyy}-${mm}-${dd}`;
+    
+    document.getElementById('pickup_date').setAttribute('min', todayStr);
+    
+    // Set maximum date for pickup to expiry date
+    {% if meal %}
+    const expiryDate = "{{ meal.expiry_date }}";
+    document.getElementById('pickup_date').setAttribute('max', expiryDate);
+    {% endif %}
+    
+    // Set default pickup date to tomorrow
+    const tomorrow = new Date();
+    tomorrow.setDate(today.getDate() + 1);
+    const tomorrowYyyy = tomorrow.getFullYear();
+    const tomorrowMm = String(tomorrow.getMonth() + 1).padStart(2, '0');
+    const tomorrowDd = String(tomorrow.getDate()).padStart(2, '0');
+    const tomorrowStr = `${tomorrowYyyy}-${tomorrowMm}-${tomorrowDd}`;
+    
+    document.getElementById('pickup_date').value = tomorrowStr;
+    
+    // Set default pickup time range
+    document.getElementById('pickup_time_start').value = '10:00';
+    document.getElementById('pickup_time_end').value = '18:00';
+</script>
+{% endblock %}

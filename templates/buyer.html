@@ -1,0 +1,393 @@
+{% extends 'base.html' %}
+
+{% block title %}Buyer Dashboard - FEAST{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/buyer.css') }}">
+{% endblock %}
+
+{% block content %}
+<section class="dashboard">
+    <div class="container">
+        <div class="dashboard-header">
+            <h2 class="dashboard-title">Buyer Dashboard</h2>
+            <div class="dashboard-actions">
+                <a href="{{ url_for('purchase_food') }}" class="btn btn-primary">Purchase Food</a>
+                <a href="#" class="btn btn-outline">Purchase History</a>
+            </div>
+        </div>
+        
+        <div class="dashboard-stats">
+            <div class="stat-card">
+                <div class="stat-value">{{ my_requests|length }}</div>
+                <div class="stat-label">Total Purchases</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="pendingPurchases">0</div>
+                <div class="stat-label">Pending Orders</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="completedPurchases">0</div>
+                <div class="stat-label">Completed Orders</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="savedAmount">₹0</div>
+                <div class="stat-label">Money Saved</div>
+            </div>
+        </div>
+        
+        <div class="dashboard-card">
+            <h3>Available Food Items for Purchase</h3>
+            <div class="food-items-grid">
+                {% if meal_plans %}
+                    {% for meal in meal_plans %}
+                        <div class="food-item-card">
+                            <div class="food-item-image">
+                                {% if meal.image_url %}
+                                    <img src="{{ meal.image_url }}" alt="{{ meal.name }}">
+                                {% else %}
+                                    <div class="placeholder-image">
+                                        <i class="fas fa-utensils"></i>
+                                    </div>
+                                {% endif %}
+                                <span class="food-item-price">₹{{ meal.price }}</span>
+                            </div>
+                            <div class="food-item-details">
+                                <h4 class="food-item-title">{{ meal.name }}</h4>
+                                <p class="food-item-description">{{ meal.description }}</p>
+                                <div class="food-item-meta">
+                                    <span><i class="fas fa-calendar"></i> Expires: {{ meal.expiry_date }}</span>
+                                    <span><i class="fas fa-weight"></i> Quantity: {{ meal.quantity }}</span>
+                                </div>
+                                <div class="food-item-actions">
+                                    <button class="btn btn-sm btn-primary purchase-btn" data-meal-id="{{ meal._id }}">Purchase</button>
+                                    <button class="btn btn-sm btn-outline view-details-btn" data-meal-id="{{ meal._id }}">Details</button>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-state">
+                        <div class="empty-icon">
+                            <i class="fas fa-shopping-basket"></i>
+                        </div>
+                        <h4>No Food Items Available</h4>
+                        <p>There are currently no food items available for purchase. Please check back later.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="dashboard-card">
+            <h3>My Purchase History</h3>
+            <div class="purchase-history">
+                {% if my_requests %}
+                    {% for request in my_requests %}
+                        <div class="purchase-card">
+                            <div class="purchase-header">
+                                <h4 class="purchase-title">{{ request.food_name }}</h4>
+                                <span class="purchase-date">{{ request.created_at.strftime('%d %b %Y, %H:%M') }}</span>
+                            </div>
+                            <div class="purchase-details">
+                                <p><strong>Quantity:</strong> {{ request.quantity }}</p>
+                                <p><strong>Price:</strong> ₹{{ request.price }}</p>
+                                <p><strong>Pickup Address:</strong> {{ request.pickup_address }}</p>
+                                <p><strong>Status:</strong> <span class="purchase-status status-{{ request.status }}">{{ request.status|capitalize }}</span></p>
+                                {% if request.status == 'accepted' or request.status == 'completed' %}
+                                    <p><strong>Seller:</strong> {{ request.seller }}</p>
+                                {% endif %}
+                                {% if request.status == 'completed' %}
+                                    <p><strong>Pickup Date:</strong> {{ request.pickup_date }}</p>
+                                {% endif %}
+                                {% if request.status == 'pending' %}
+                                    <button class="btn btn-sm btn-outline cancel-purchase-btn" data-request-id="{{ request._id }}">Cancel</button>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-state">
+                        <div class="empty-icon">
+                            <i class="fas fa-receipt"></i>
+                        </div>
+                        <h4>No Purchase History</h4>
+                        <p>You haven't made any purchases yet. Start by purchasing available food items.</p>
+                        <a href="{{ url_for('purchase_food') }}" class="btn btn-primary">Purchase Food</a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="dashboard-card">
+            <h3>Nearby Food Sellers</h3>
+            <div id="map" style="height: 400px;"></div>
+            <div class="seller-list">
+                <div class="seller-item">
+                    <div class="seller-info">
+                        <h4>Community Kitchen East</h4>
+                        <p>123 East Street, City</p>
+                        <p><strong>Distance:</strong> 2.3 km</p>
+                        <p><strong>Available Items:</strong> 5</p>
+                    </div>
+                    <div class="seller-actions">
+                        <button class="btn btn-sm btn-primary view-seller" data-seller="Community Kitchen East">View Items</button>
+                        <button class="btn btn-sm btn-outline get-directions" data-lat="20.5937" data-lng="78.9629">Directions</button>
+                    </div>
+                </div>
+                
+                <div class="seller-item">
+                    <div class="seller-info">
+                        <h4>Community Kitchen West</h4>
+                        <p>456 West Avenue, City</p>
+                        <p><strong>Distance:</strong> 3.7 km</p>
+                        <p><strong>Available Items:</strong> 3</p>
+                    </div>
+                    <div class="seller-actions">
+                        <button class="btn btn-sm btn-primary view-seller" data-seller="Community Kitchen West">View Items</button>
+                        <button class="btn btn-sm btn-outline get-directions" data-lat="20.5937" data-lng="78.9629">Directions</button>
+                    </div>
+                </div>
+                
+                <div class="seller-item">
+                    <div class="seller-info">
+                        <h4>Community Kitchen North</h4>
+                        <p>789 North Road, City</p>
+                        <p><strong>Distance:</strong> 5.1 km</p>
+                        <p><strong>Available Items:</strong> 7</p>
+                    </div>
+                    <div class="seller-actions">
+                        <button class="btn btn-sm btn-primary view-seller" data-seller="Community Kitchen North">View Items</button>
+                        <button class="btn btn-sm btn-outline get-directions" data-lat="20.5937" data-lng="78.9629">Directions</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Food Item Details Modal -->
+<div id="foodItemModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <span class="close-modal">&times;</span>
+        <div id="modalContent">
+            <!-- Content will be loaded dynamically -->
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Initialize map
+    let map;
+    let userMarker;
+    let sellerMarkers = [];
+    let userPosition;
+    let directionsService;
+    let directionsRenderer;
+    
+    function initMap() {
+        // Default center (will be updated with user's location)
+        map = L.map('map').setView([20.5937, 78.9629], 12);
+        
+        // Add OpenStreetMap tiles
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            maxZoom: 18,
+        }).addTo(map);
+        
+        // Try to get user's current location
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    userPosition = {
+                        lat: position.coords.latitude,
+                        lng: position.coords.longitude
+                    };
+                    
+                    map.setView([userPosition.lat, userPosition.lng], 12);
+                    
+                    // Create marker for user's position
+                    userMarker = L.marker([userPosition.lat, userPosition.lng], {
+                        icon: L.icon({
+                            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
+                            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+                            iconSize: [25, 41],
+                            iconAnchor: [12, 41],
+                            popupAnchor: [1, -34],
+                            shadowSize: [41, 41]
+                        })
+                    }).addTo(map);
+                    userMarker.bindPopup("Your Location").openPopup();
+                    
+                    // Add sellers to map
+                    addSellersToMap();
+                },
+                (error) => {
+                    console.error("Error getting location:", error);
+                    addSellersToMap();
+                }
+            );
+        } else {
+            console.error("Geolocation is not supported by this browser.");
+            addSellersToMap();
+        }
+    }
+    
+    function addSellersToMap() {
+        // Example seller locations
+        const sellers = [
+            { name: "Community Kitchen East", lat: 20.5937, lng: 78.9629 },
+            { name: "Community Kitchen West", lat: 20.5837, lng: 78.9529 },
+            { name: "Community Kitchen North", lat: 20.6037, lng: 78.9729 }
+        ];
+        
+        sellers.forEach(seller => {
+            const marker = L.marker([seller.lat, seller.lng], {
+                icon: L.icon({
+                    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+                    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+                    iconSize: [25, 41],
+                    iconAnchor: [12, 41],
+                    popupAnchor: [1, -34],
+                    shadowSize: [41, 41]
+                })
+            }).addTo(map);
+            marker.bindPopup(seller.name);
+            sellerMarkers.push(marker);
+        });
+    }
+    
+    // Get directions to a seller
+    document.querySelectorAll('.get-directions').forEach(button => {
+        button.addEventListener('click', function() {
+            const lat = parseFloat(this.getAttribute('data-lat'));
+            const lng = parseFloat(this.getAttribute('data-lng'));
+            
+            if (userPosition) {
+                // Open directions in Google Maps
+                window.open(`https://www.google.com/maps/dir/?api=1&origin=${userPosition.lat},${userPosition.lng}&destination=${lat},${lng}`, '_blank');
+            } else {
+                alert("Your location is not available. Please enable location services.");
+            }
+        });
+    });
+    
+    // Initialize stats
+    function initStats() {
+        // Count pending and completed purchases
+        const purchases = document.querySelectorAll('.purchase-card');
+        let pending = 0;
+        let completed = 0;
+        let savedAmount = 0;
+        
+        purchases.forEach(purchase => {
+            const status = purchase.querySelector('.purchase-status').textContent.toLowerCase();
+            if (status === 'pending') {
+                pending++;
+            } else if (status === 'completed') {
+                completed++;
+                // Calculate saved amount (example: 30% off retail price)
+                const priceText = purchase.querySelector('p:nth-child(2)').textContent;
+                const price = parseFloat(priceText.replace(/[^0-9.]/g, ''));
+                savedAmount += price * 0.3;
+            }
+        });
+        
+        document.getElementById('pendingPurchases').textContent = pending;
+        document.getElementById('completedPurchases').textContent = completed;
+        document.getElementById('savedAmount').textContent = '₹' + savedAmount.toFixed(2);
+    }
+    
+    // Handle purchase button clicks
+    document.querySelectorAll('.purchase-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const mealId = this.getAttribute('data-meal-id');
+            window.location.href = `/purchase-food?meal_id=${mealId}`;
+        });
+    });
+    
+    // Handle view details button clicks
+    document.querySelectorAll('.view-details-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const mealId = this.getAttribute('data-meal-id');
+            const modal = document.getElementById('foodItemModal');
+            const modalContent = document.getElementById('modalContent');
+            
+            // Example content - in a real app, you would fetch this from the server
+            modalContent.innerHTML = `
+                <h3>Food Item Details</h3>
+                <div class="food-details">
+                    <img src="/static/images/food-placeholder.jpg" alt="Food Item">
+                    <div class="details-content">
+                        <h4>Food Item Name</h4>
+                        <p><strong>Price:</strong> ₹50</p>
+                        <p><strong>Description:</strong> Delicious food item description goes here.</p>
+                        <p><strong>Quantity:</strong> 2 servings</p>
+                        <p><strong>Expiry Date:</strong> 05 Apr 2025</p>
+                        <p><strong>Seller:</strong> Community Kitchen East</p>
+                        <p><strong>Nutritional Info:</strong> Protein: 15g, Carbs: 30g, Fat: 10g</p>
+                        <button class="btn btn-primary purchase-btn" data-meal-id="${mealId}">Purchase Now</button>
+                    </div>
+                </div>
+            `;
+            
+            modal.style.display = "block";
+            
+            // Add event listener to the purchase button in the modal
+            modalContent.querySelector('.purchase-btn').addEventListener('click', function() {
+                window.location.href = `/purchase-food?meal_id=${mealId}`;
+            });
+        });
+    });
+    
+    // Close modal when clicking the close button
+    document.querySelector('.close-modal').addEventListener('click', function() {
+        document.getElementById('foodItemModal').style.display = "none";
+    });
+    
+    // Close modal when clicking outside the modal content
+    window.addEventListener('click', function(event) {
+        const modal = document.getElementById('foodItemModal');
+        if (event.target === modal) {
+            modal.style.display = "none";
+        }
+    });
+    
+    // Handle cancel purchase button clicks
+    document.querySelectorAll('.cancel-purchase-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const requestId = this.getAttribute('data-request-id');
+            if (confirm('Are you sure you want to cancel this purchase?')) {
+                fetch(`/cancel-purchase/${requestId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Purchase cancelled successfully');
+                        location.reload();
+                    } else {
+                        alert('Failed to cancel purchase: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred while cancelling the purchase');
+                });
+            }
+        });
+    });
+    
+    // Initialize when the page loads
+    window.onload = function() {
+        initMap();
+        initStats();
+    };
+</script>
+{% endblock %}
