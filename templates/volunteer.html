@@ -1,0 +1,323 @@
+{% extends 'base.html' %}
+
+{% block title %}Volunteer Dashboard - FEAST{% endblock %}
+
+{% block head %}
+<script src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY&libraries=places"></script>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/volunteer.css') }}">
+{% endblock %}
+
+{% block content %}
+<section class="dashboard">
+    <div class="container">
+        <div class="dashboard-header">
+            <h2 class="dashboard-title">Volunteer Dashboard</h2>
+            <div class="dashboard-actions">
+                <button id="startTracking" class="btn btn-primary">Start Location Tracking</button>
+                <button id="stopTracking" class="btn btn-outline" style="display: none;">Stop Tracking</button>
+            </div>
+        </div>
+        
+        <div class="dashboard-stats">
+            <div class="stat-card">
+                <div class="stat-value">{{ tasks|length }}</div>
+                <div class="stat-label">Assigned Tasks</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="completedTasks">0</div>
+                <div class="stat-label">Completed Tasks</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="totalDistance">0</div>
+                <div class="stat-label">Total Distance (km)</div>
+            </div>
+        </div>
+        
+        <div class="dashboard-card">
+            <h3>Your Location</h3>
+            <div class="location-tracking">
+                <div id="locationIndicator" class="location-indicator location-inactive"></div>
+                <span id="trackingStatus">Location tracking is inactive</span>
+            </div>
+            <div id="map"></div>
+        </div>
+        
+        <div class="dashboard-card">
+            <h3>Assigned Tasks</h3>
+            {% if tasks %}
+                <div class="tasks-container">
+                    {% for task in tasks %}
+                        <div class="task-card">
+                            <div class="task-header">
+                                <div class="task-title">{{ task.task_type }}</div>
+                                <div class="task-status status-{{ task.status }}">{{ task.status|capitalize }}</div>
+                            </div>
+                            <div class="task-details">
+                                <p>{{ task.description }}</p>
+                                <p><strong>Location:</strong> {{ task.location }}</p>
+                                <p><strong>Assigned:</strong> {{ task.created_at.strftime('%d %b %Y, %H:%M') }}</p>
+                            </div>
+                            <div class="task-actions">
+                                <button class="btn btn-primary start-task" data-task-id="{{ task._id }}">Start Task</button>
+                                <button class="btn btn-outline complete-task" data-task-id="{{ task._id }}" style="display: none;">Complete Task</button>
+                                <button class="btn btn-outline navigate-task" data-location="{{ task.location }}">Navigate</button>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p>No tasks assigned yet.</p>
+            {% endif %}
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Initialize map
+    let map;
+    let marker;
+    let watchId;
+    let directionsService;
+    let directionsRenderer;
+    let currentPosition;
+    let totalDistance = 0;
+    
+    function initMap() {
+        // Default center (will be updated with user's location)
+        const defaultCenter = { lat: 20.5937, lng: 78.9629 }; // Center of India
+        
+        map = new google.maps.Map(document.getElementById("map"), {
+            zoom: 12,
+            center: defaultCenter,
+            mapTypeControl: true,
+            streetViewControl: false,
+            fullscreenControl: true,
+        });
+        
+        // Initialize directions service
+        directionsService = new google.maps.DirectionsService();
+        directionsRenderer = new google.maps.DirectionsRenderer({
+            map: map,
+            suppressMarkers: false
+        });
+        
+        // Try to get user's current location
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const pos = {
+                        lat: position.coords.latitude,
+                        lng: position.coords.longitude
+                    };
+                    
+                    currentPosition = pos;
+                    map.setCenter(pos);
+                    
+                    // Create marker for volunteer's position
+                    marker = new google.maps.Marker({
+                        position: pos,
+                        map: map,
+                        title: "Your Location",
+                        icon: {
+                            url: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png"
+                        }
+                    });
+                },
+                () => {
+                    console.error("Error: The Geolocation service failed.");
+                }
+            );
+        } else {
+            console.error("Error: Your browser doesn't support geolocation.");
+        }
+    }
+    
+    // Start location tracking
+    document.getElementById("startTracking").addEventListener("click", function() {
+        if (navigator.geolocation) {
+            // Update UI
+            document.getElementById("locationIndicator").className = "location-indicator location-active";
+            document.getElementById("trackingStatus").textContent = "Location tracking is active";
+            document.getElementById("startTracking").style.display = "none";
+            document.getElementById("stopTracking").style.display = "inline-block";
+            
+            // Start watching position
+            watchId = navigator.geolocation.watchPosition(
+                (position) => {
+                    const pos = {
+                        lat: position.coords.latitude,
+                        lng: position.coords.longitude
+                    };
+                    
+                    // Calculate distance if we have a previous position
+                    if (currentPosition) {
+                        const distance = calculateDistance(
+                            currentPosition.lat, currentPosition.lng,
+                            pos.lat, pos.lng
+                        );
+                        totalDistance += distance;
+                        document.getElementById("totalDistance").textContent = totalDistance.toFixed(2);
+                    }
+                    
+                    currentPosition = pos;
+                    
+                    // Update marker position
+                    if (marker) {
+                        marker.setPosition(pos);
+                    } else {
+                        marker = new google.maps.Marker({
+                            position: pos,
+                            map: map,
+                            title: "Your Location",
+                            icon: {
+                                url: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png"
+                            }
+                        });
+                    }
+                    
+                    // Send location to server
+                    updateLocationOnServer(pos.lat, pos.lng);
+                },
+                (error) => {
+                    console.error("Error getting location:", error);
+                    alert("Error tracking location: " + error.message);
+                    stopLocationTracking();
+                },
+                {
+                    enableHighAccuracy: true,
+                    maximumAge: 0,
+                    timeout: 5000
+                }
+            );
+        } else {
+            alert("Geolocation is not supported by this browser.");
+        }
+    });
+    
+    // Stop location tracking
+    document.getElementById("stopTracking").addEventListener("click", stopLocationTracking);
+    
+    function stopLocationTracking() {
+        if (watchId) {
+            navigator.geolocation.clearWatch(watchId);
+            watchId = null;
+        }
+        
+        // Update UI
+        document.getElementById("locationIndicator").className = "location-indicator location-inactive";
+        document.getElementById("trackingStatus").textContent = "Location tracking is inactive";
+        document.getElementById("startTracking").style.display = "inline-block";
+        document.getElementById("stopTracking").style.display = "none";
+    }
+    
+    // Update location on server
+    function updateLocationOnServer(lat, lng) {
+        fetch('/api/update-location', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                latitude: lat,
+                longitude: lng
+            }),
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log('Location updated:', data);
+        })
+        .catch((error) => {
+            console.error('Error updating location:', error);
+        });
+    }
+    
+    // Calculate distance between two points using Haversine formula
+    function calculateDistance(lat1, lon1, lat2, lon2) {
+        const R = 6371; // Radius of the earth in km
+        const dLat = deg2rad(lat2 - lat1);
+        const dLon = deg2rad(lon2 - lon1);
+        const a = 
+            Math.sin(dLat/2) * Math.sin(dLat/2) +
+            Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * 
+            Math.sin(dLon/2) * Math.sin(dLon/2); 
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
+        const distance = R * c; // Distance in km
+        return distance;
+    }
+    
+    function deg2rad(deg) {
+        return deg * (Math.PI/180);
+    }
+    
+    // Task management
+    document.querySelectorAll('.start-task').forEach(button => {
+        button.addEventListener('click', function() {
+            const taskId = this.getAttribute('data-task-id');
+            this.style.display = 'none';
+            this.nextElementSibling.style.display = 'inline-block';
+            
+            // Update task status on server (would be implemented in a real app)
+            console.log('Started task:', taskId);
+        });
+    });
+    
+    document.querySelectorAll('.complete-task').forEach(button => {
+        button.addEventListener('click', function() {
+            const taskCard = this.closest('.task-card');
+            const statusElement = taskCard.querySelector('.task-status');
+            
+            statusElement.className = 'task-status status-completed';
+            statusElement.textContent = 'Completed';
+            
+            this.disabled = true;
+            
+            // Update completed tasks count
+            const completedTasks = parseInt(document.getElementById('completedTasks').textContent);
+            document.getElementById('completedTasks').textContent = completedTasks + 1;
+            
+            // Update task status on server (would be implemented in a real app)
+            const taskId = this.getAttribute('data-task-id');
+            console.log('Completed task:', taskId);
+        });
+    });
+    
+    // Navigation to task location
+    document.querySelectorAll('.navigate-task').forEach(button => {
+        button.addEventListener('click', function() {
+            const locationAddress = this.getAttribute('data-location');
+            
+            if (!currentPosition) {
+                alert('Your current location is not available. Please enable location tracking.');
+                return;
+            }
+            
+            // Use Google Maps Directions service
+            const geocoder = new google.maps.Geocoder();
+            geocoder.geocode({ 'address': locationAddress }, function(results, status) {
+                if (status === 'OK') {
+                    const destinationLocation = results[0].geometry.location;
+                    
+                    directionsService.route({
+                        origin: currentPosition,
+                        destination: destinationLocation,
+                        travelMode: google.maps.TravelMode.DRIVING
+                    }, function(response, status) {
+                        if (status === 'OK') {
+                            directionsRenderer.setDirections(response);
+                        } else {
+                            alert('Directions request failed due to ' + status);
+                        }
+                    });
+                } else {
+                    alert('Geocode was not successful for the following reason: ' + status);
+                }
+            });
+        });
+    });
+    
+    // Initialize map when the page loads
+    window.onload = initMap;
+</script>
+{% endblock %}

@@ -1,0 +1,359 @@
+{% extends 'base.html' %}
+
+{% block title %}Request Food - FEAST{% endblock %}
+
+{% block head %}
+<script src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY&libraries=places"></script>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/request_food.css') }}">
+{% endblock %}
+
+{% block content %}
+<section class="request-section">
+    <div class="container">
+        <h2 class="section-title">Request Food</h2>
+        
+        <div class="form-container">
+            <form method="POST" action="{{ url_for('request_food') }}">
+                <div class="form-card">
+                    <h3>Food Request Information</h3>
+                    
+                    <div class="form-group">
+                        <label for="food_type">Food Type</label>
+                        <select id="food_type" name="food_type" class="form-control" required>
+                            <option value="">-- Select Food Type --</option>
+                            <option value="cooked_meal">Cooked Meal</option>
+                            <option value="grocery_package">Grocery Package</option>
+                            <option value="emergency_food">Emergency Food</option>
+                            <option value="specific_items">Specific Items</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group" id="specificItemsGroup" style="display: none;">
+                        <label for="specific_items">Specific Items Needed</label>
+                        <textarea id="specific_items" name="specific_items" class="form-control" rows="3" placeholder="List the specific food items you need"></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="servings">Number of Servings/People</label>
+                        <input type="number" id="servings" name="servings" class="form-control" min="1" required>
+                        <small class="form-text">How many people need to be fed?</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="dietary_restrictions">Dietary Restrictions</label>
+                        <div class="checkbox-group">
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="vegetarian" name="dietary_restrictions[]" value="vegetarian">
+                                <label for="vegetarian">Vegetarian</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="vegan" name="dietary_restrictions[]" value="vegan">
+                                <label for="vegan">Vegan</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="gluten_free" name="dietary_restrictions[]" value="gluten_free">
+                                <label for="gluten_free">Gluten-Free</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="dairy_free" name="dietary_restrictions[]" value="dairy_free">
+                                <label for="dairy_free">Dairy-Free</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="nut_free" name="dietary_restrictions[]" value="nut_free">
+                                <label for="nut_free">Nut-Free</label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="urgency">Urgency Level</label>
+                        <select id="urgency" name="urgency" class="form-control" required>
+                            <option value="low">Low (Within a week)</option>
+                            <option value="medium">Medium (Within 2-3 days)</option>
+                            <option value="high">High (Within 24 hours)</option>
+                            <option value="emergency">Emergency (As soon as possible)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="request_notes">Additional Notes</label>
+                        <textarea id="request_notes" name="request_notes" class="form-control" rows="3" placeholder="Any additional information about your request"></textarea>
+                    </div>
+                </div>
+                
+                <div class="form-card">
+                    <h3>Delivery Information</h3>
+                    
+                    <div class="form-group">
+                        <label for="delivery_method">Preferred Delivery Method</label>
+                        <select id="delivery_method" name="delivery_method" class="form-control" required>
+                            <option value="delivery">Home Delivery</option>
+                            <option value="pickup">Pickup from Community Kitchen</option>
+                        </select>
+                    </div>
+                    
+                    <div id="deliveryAddressGroup">
+                        <div class="form-group">
+                            <label for="delivery_address">Delivery Address</label>
+                            <textarea id="delivery_address" name="delivery_address" class="form-control" rows="3"></textarea>
+                        </div>
+                        
+                        <div class="form-group location-group">
+                            <label>Delivery Location</label>
+                            <button type="button" id="getLocationBtn" class="btn btn-outline">Use Current Location</button>
+                            <div id="locationStatus"></div>
+                            <input type="hidden" id="latitude" name="latitude">
+                            <input type="hidden" id="longitude" name="longitude">
+                        </div>
+                        
+                        <div id="map" class="location-map"></div>
+                        
+                        <div class="form-group">
+                            <label for="delivery_instructions">Delivery Instructions</label>
+                            <textarea id="delivery_instructions" name="delivery_instructions" class="form-control" rows="2" placeholder="E.g., Apartment number, gate code, landmarks"></textarea>
+                        </div>
+                    </div>
+                    
+                    <div id="pickupDetailsGroup" style="display: none;">
+                        <div class="form-group">
+                            <label for="preferred_kitchen">Preferred Community Kitchen</label>
+                            <select id="preferred_kitchen" name="preferred_kitchen" class="form-control">
+                                <option value="">-- Select Kitchen --</option>
+                                <option value="kitchen1">Community Kitchen East</option>
+                                <option value="kitchen2">Community Kitchen West</option>
+                                <option value="kitchen3">Community Kitchen North</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="pickup_person">Person Picking Up</label>
+                            <input type="text" id="pickup_person" name="pickup_person" class="form-control">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="preferred_date">Preferred Date</label>
+                        <input type="date" id="preferred_date" name="preferred_date" class="form-control" required>
+                    </div>
+                    
+                    <div class="form-group time-range">
+                        <label>Preferred Time Range</label>
+                        <div class="time-inputs">
+                            <input type="time" id="preferred_time_start" name="preferred_time_start" class="form-control" required>
+                            <span>to</span>
+                            <input type="time" id="preferred_time_end" name="preferred_time_end" class="form-control" required>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-card">
+                    <h3>Contact Information</h3>
+                    
+                    <div class="form-group">
+                        <label for="contact_name">Contact Name</label>
+                        <input type="text" id="contact_name" name="contact_name" class="form-control" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="contact_phone">Contact Phone</label>
+                        <input type="tel" id="contact_phone" name="contact_phone" class="form-control" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="alternate_contact">Alternate Contact (Optional)</label>
+                        <input type="tel" id="alternate_contact" name="alternate_contact" class="form-control">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Communication Preference</label>
+                        <div class="checkbox-group">
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="sms_updates" name="communication_preference[]" value="sms">
+                                <label for="sms_updates">SMS Updates</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="phone_call" name="communication_preference[]" value="phone">
+                                <label for="phone_call">Phone Call</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">Submit Request</button>
+                    <a href="{{ url_for('seeker_dashboard') }}" class="btn btn-outline">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Initialize map
+    let map;
+    let marker;
+    
+    function initMap() {
+        // Default center (will be updated with user's location)
+        const defaultCenter = { lat: 20.5937, lng: 78.9629 }; // Center of India
+        
+        map = new google.maps.Map(document.getElementById("map"), {
+            zoom: 15,
+            center: defaultCenter,
+            mapTypeControl: false,
+            streetViewControl: false,
+            fullscreenControl: true,
+        });
+        
+        // Try to get user's current location
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const pos = {
+                        lat: position.coords.latitude,
+                        lng: position.coords.longitude
+                    };
+                    
+                    map.setCenter(pos);
+                    
+                    // Create marker for user's position
+                    marker = new google.maps.Marker({
+                        position: pos,
+                        map: map,
+                        title: "Delivery Location",
+                        draggable: true
+                    });
+                    
+                    // Update hidden form fields
+                    document.getElementById('latitude').value = pos.lat;
+                    document.getElementById('longitude').value = pos.lng;
+                    
+                    // Update coordinates when marker is dragged
+                    marker.addListener('dragend', function() {
+                        const position = marker.getPosition();
+                        document.getElementById('latitude').value = position.lat();
+                        document.getElementById('longitude').value = position.lng();
+                    });
+                },
+                () => {
+                    console.error("Error: The Geolocation service failed.");
+                }
+            );
+        } else {
+            console.error("Error: Your browser doesn't support geolocation.");
+        }
+    }
+    
+    // Get location button
+    document.getElementById('getLocationBtn').addEventListener('click', function() {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const pos = {
+                        lat: position.coords.latitude,
+                        lng: position.coords.longitude
+                    };
+                    
+                    map.setCenter(pos);
+                    
+                    if (marker) {
+                        marker.setPosition(pos);
+                    } else {
+                        marker = new google.maps.Marker({
+                            position: pos,
+                            map: map,
+                            title: "Delivery Location",
+                            draggable: true
+                        });
+                        
+                        // Update coordinates when marker is dragged
+                        marker.addListener('dragend', function() {
+                            const position = marker.getPosition();
+                            document.getElementById('latitude').value = position.lat();
+                            document.getElementById('longitude').value = position.lng();
+                        });
+                    }
+                    
+                    // Update hidden form fields
+                    document.getElementById('latitude').value = pos.lat;
+                    document.getElementById('longitude').value = pos.lng;
+                    
+                    // Show success message
+                    document.getElementById('locationStatus').textContent = 'Location captured successfully!';
+                    document.getElementById('locationStatus').className = 'success-text';
+                },
+                (error) => {
+                    console.error("Error getting location:", error);
+                    document.getElementById('locationStatus').textContent = 'Failed to get location. Please try again.';
+                    document.getElementById('locationStatus').className = 'error-text';
+                }
+            );
+        } else {
+            alert("Geolocation is not supported by this browser.");
+        }
+    });
+    
+    // Toggle specific items field based on food type selection
+    document.getElementById('food_type').addEventListener('change', function() {
+        const specificItemsGroup = document.getElementById('specificItemsGroup');
+        
+        if (this.value === 'specific_items') {
+            specificItemsGroup.style.display = 'block';
+            document.getElementById('specific_items').setAttribute('required', 'required');
+        } else {
+            specificItemsGroup.style.display = 'none';
+            document.getElementById('specific_items').removeAttribute('required');
+        }
+    });
+    
+    // Toggle delivery/pickup fields based on delivery method selection
+    document.getElementById('delivery_method').addEventListener('change', function() {
+        const deliveryAddressGroup = document.getElementById('deliveryAddressGroup');
+        const pickupDetailsGroup = document.getElementById('pickupDetailsGroup');
+        
+        if (this.value === 'delivery') {
+            deliveryAddressGroup.style.display = 'block';
+            pickupDetailsGroup.style.display = 'none';
+            document.getElementById('delivery_address').setAttribute('required', 'required');
+            document.getElementById('preferred_kitchen').removeAttribute('required');
+            document.getElementById('pickup_person').removeAttribute('required');
+        } else {
+            deliveryAddressGroup.style.display = 'none';
+            pickupDetailsGroup.style.display = 'block';
+            document.getElementById('delivery_address').removeAttribute('required');
+            document.getElementById('preferred_kitchen').setAttribute('required', 'required');
+            document.getElementById('pickup_person').setAttribute('required', 'required');
+        }
+    });
+    
+    // Form validation
+    document.querySelector('form').addEventListener('submit', function(e) {
+        // Validate preferred date
+        const preferredDate = new Date(document.getElementById('preferred_date').value);
+        const today = new Date();
+        
+        if (preferredDate < today) {
+            e.preventDefault();
+            alert('Preferred date must be in the future.');
+            return;
+        }
+        
+        // Validate time range
+        const startTime = document.getElementById('preferred_time_start').value;
+        const endTime = document.getElementById('preferred_time_end').value;
+        
+        if (startTime >= endTime) {
+            e.preventDefault();
+            alert('End time must be after start time.');
+            return;
+        }
+    });
+    
+    // Initialize map when the page loads
+    window.addEventListener('load', function() {
+        initMap();
+    });
+</script>
+{% endblock %}

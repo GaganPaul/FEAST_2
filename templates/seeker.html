@@ -1,0 +1,623 @@
+{% extends 'base.html' %}
+
+{% block title %}Food Seeker Dashboard - FEAST{% endblock %}
+
+{% block head %}
+<script src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY&libraries=places"></script>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/seeker.css') }}">
+{% endblock %}
+
+{% block content %}
+<section class="dashboard">
+    <div class="container">
+        <div class="dashboard-header">
+            <h2 class="dashboard-title">Food Seeker Dashboard</h2>
+            <div class="dashboard-actions">
+                <a href="{{ url_for('request_food') }}" class="btn btn-primary">Request Food</a>
+                <button id="updateLocation" class="btn btn-outline">Update My Location</button>
+            </div>
+        </div>
+        
+        <div class="dashboard-stats">
+            <div class="stat-card">
+                <div class="stat-value">{{ volunteers|length }}</div>
+                <div class="stat-label">Active Volunteers</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">{{ kitchens|length }}</div>
+                <div class="stat-label">Community Kitchens</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="pendingRequests">0</div>
+                <div class="stat-label">Pending Requests</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="completedRequests">0</div>
+                <div class="stat-label">Completed Requests</div>
+            </div>
+        </div>
+        
+        <div class="dashboard-card">
+            <h3>Nearby Resources</h3>
+            <div id="map"></div>
+            <div class="map-legend">
+                <div class="legend-item">
+                    <div class="legend-icon" style="background-color: #4285F4;"></div>
+                    <span>Your Location</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-icon" style="background-color: #EA4335;"></div>
+                    <span>Community Kitchens</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-icon" style="background-color: #FBBC05;"></div>
+                    <span>Active Volunteers</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="dashboard-card">
+            <h3>Available Food Resources</h3>
+            <div class="resource-filters">
+                <div class="form-group">
+                    <select id="resourceType" class="form-control">
+                        <option value="all">All Resources</option>
+                        <option value="kitchens">Community Kitchens</option>
+                        <option value="volunteers">Volunteers</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <select id="sortBy" class="form-control">
+                        <option value="distance">Sort by Distance</option>
+                        <option value="availability">Sort by Availability</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="resources-container">
+                <div class="resource-section" id="kitchenResources">
+                    <h4>Community Kitchens</h4>
+                    {% if kitchens %}
+                        <div class="resource-list">
+                            {% for kitchen in kitchens %}
+                                <div class="resource-card kitchen-card">
+                                    <div class="resource-icon">
+                                        <i class="fas fa-store"></i>
+                                    </div>
+                                    <div class="resource-info">
+                                        <h5>{{ kitchen.name }}</h5>
+                                        <p>{{ kitchen.address }}</p>
+                                        <p class="resource-distance">
+                                            <i class="fas fa-map-marker-alt"></i> <span class="distance-value">Calculating...</span>
+                                        </p>
+                                        <div class="resource-meta">
+                                            <span><i class="fas fa-clock"></i> Open: 9 AM - 6 PM</span>
+                                            <span><i class="fas fa-utensils"></i> Serves: Lunch & Dinner</span>
+                                        </div>
+                                    </div>
+                                    <div class="resource-actions">
+                                        <button class="btn btn-sm btn-primary request-meal" data-id="{{ kitchen._id }}">Request Meal</button>
+                                        <button class="btn btn-sm btn-outline get-directions" data-lat="{{ kitchen.location.coordinates[1] }}" data-lng="{{ kitchen.location.coordinates[0] }}">Get Directions</button>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p>No community kitchens found nearby.</p>
+                    {% endif %}
+                </div>
+                
+                <div class="resource-section" id="volunteerResources">
+                    <h4>Active Volunteers</h4>
+                    {% if volunteers %}
+                        <div class="resource-list">
+                            {% for volunteer in volunteers %}
+                                <div class="resource-card volunteer-card">
+                                    <div class="resource-icon volunteer-avatar">
+                                        {{ volunteer.name[0] }}
+                                    </div>
+                                    <div class="resource-info">
+                                        <h5>{{ volunteer.name }}</h5>
+                                        <p class="resource-distance">
+                                            <i class="fas fa-map-marker-alt"></i> <span class="distance-value">Calculating...</span>
+                                        </p>
+                                        <div class="resource-meta">
+                                            <span><i class="fas fa-clock"></i> Available Now</span>
+                                        </div>
+                                    </div>
+                                    <div class="resource-actions">
+                                        <button class="btn btn-sm btn-primary request-delivery" data-id="{{ volunteer._id }}">Request Delivery</button>
+                                        <button class="btn btn-sm btn-outline contact-volunteer" data-id="{{ volunteer._id }}">Contact</button>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p>No active volunteers found nearby.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="dashboard-card">
+            <h3>Your Food Requests</h3>
+            <div class="requests-container">
+                <div class="request-card">
+                    <div class="request-header">
+                        <h4>Vegetarian Meal</h4>
+                        <span class="request-status status-pending">Pending</span>
+                    </div>
+                    <div class="request-details">
+                        <p><strong>Requested:</strong> 04 Apr 2025, 10:30 AM</p>
+                        <p><strong>Servings:</strong> 2</p>
+                        <p><strong>Delivery Address:</strong> 123 Main St, Apartment 4B</p>
+                    </div>
+                    <div class="request-actions">
+                        <button class="btn btn-outline cancel-request">Cancel Request</button>
+                        <button class="btn btn-outline track-request">Track Status</button>
+                    </div>
+                </div>
+                
+                <div class="request-card">
+                    <div class="request-header">
+                        <h4>Emergency Food Package</h4>
+                        <span class="request-status status-in-progress">In Progress</span>
+                    </div>
+                    <div class="request-details">
+                        <p><strong>Requested:</strong> 03 Apr 2025, 5:45 PM</p>
+                        <p><strong>Servings:</strong> 4</p>
+                        <p><strong>Delivery Address:</strong> 123 Main St, Apartment 4B</p>
+                        <p><strong>Assigned Volunteer:</strong> John D.</p>
+                        <p><strong>Estimated Delivery:</strong> 04 Apr 2025, 6:30 PM</p>
+                    </div>
+                    <div class="request-actions">
+                        <button class="btn btn-primary track-delivery">Track Delivery</button>
+                        <button class="btn btn-outline contact-volunteer">Contact Volunteer</button>
+                    </div>
+                </div>
+                
+                <div class="request-card">
+                    <div class="request-header">
+                        <h4>Weekly Groceries</h4>
+                        <span class="request-status status-completed">Completed</span>
+                    </div>
+                    <div class="request-details">
+                        <p><strong>Requested:</strong> 28 Mar 2025, 9:15 AM</p>
+                        <p><strong>Servings:</strong> Family of 3</p>
+                        <p><strong>Delivery Address:</strong> 123 Main St, Apartment 4B</p>
+                        <p><strong>Delivered By:</strong> Sarah M.</p>
+                        <p><strong>Delivered On:</strong> 29 Mar 2025, 11:30 AM</p>
+                    </div>
+                    <div class="request-actions">
+                        <button class="btn btn-outline leave-feedback">Leave Feedback</button>
+                        <button class="btn btn-outline request-again">Request Again</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Request Meal Modal -->
+<div class="modal" id="requestMealModal">
+    <div class="modal-content">
+        <span class="close-modal">&times;</span>
+        <h2>Request a Meal</h2>
+        <form id="requestMealForm">
+            <div class="form-group">
+                <label for="mealType">Meal Type</label>
+                <select id="mealType" class="form-control" required>
+                    <option value="">-- Select Meal Type --</option>
+                    <option value="vegetarian">Vegetarian</option>
+                    <option value="non-vegetarian">Non-Vegetarian</option>
+                    <option value="vegan">Vegan</option>
+                    <option value="no-preference">No Preference</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="servings">Number of Servings</label>
+                <input type="number" id="servings" class="form-control" min="1" required>
+            </div>
+            <div class="form-group">
+                <label for="deliveryAddress">Delivery Address</label>
+                <textarea id="deliveryAddress" class="form-control" rows="3" required></textarea>
+            </div>
+            <div class="form-group">
+                <label for="deliveryTime">Preferred Delivery Time</label>
+                <input type="datetime-local" id="deliveryTime" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label for="specialInstructions">Special Instructions</label>
+                <textarea id="specialInstructions" class="form-control" rows="3"></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary">Submit Request</button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Map initialization
+    let map;
+    let userMarker;
+    let kitchenMarkers = [];
+    let volunteerMarkers = [];
+    let userPosition;
+    let directionsService;
+    let directionsRenderer;
+    
+    function initMap() {
+        // Default center (will be updated with user's location)
+        const defaultCenter = { lat: 20.5937, lng: 78.9629 }; // Center of India
+        
+        map = new google.maps.Map(document.getElementById("map"), {
+            zoom: 13,
+            center: defaultCenter,
+            mapTypeControl: true,
+            streetViewControl: false,
+            fullscreenControl: true,
+        });
+        
+        // Initialize directions service
+        directionsService = new google.maps.DirectionsService();
+        directionsRenderer = new google.maps.DirectionsRenderer({
+            map: map,
+            suppressMarkers: false
+        });
+        
+        // Try to get user's current location
+        getUserLocation();
+        
+        // Fetch volunteer locations periodically
+        fetchVolunteerLocations();
+        setInterval(fetchVolunteerLocations, 30000); // Update every 30 seconds
+    }
+    
+    function getUserLocation() {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    userPosition = {
+                        lat: position.coords.latitude,
+                        lng: position.coords.longitude
+                    };
+                    
+                    map.setCenter(userPosition);
+                    
+                    // Create or update user marker
+                    if (userMarker) {
+                        userMarker.setPosition(userPosition);
+                    } else {
+                        userMarker = new google.maps.Marker({
+                            position: userPosition,
+                            map: map,
+                            title: "Your Location",
+                            icon: {
+                                url: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png"
+                            }
+                        });
+                    }
+                    
+                    // Add community kitchens to map
+                    addKitchensToMap();
+                    
+                    // Calculate distances
+                    calculateDistances();
+                },
+                (error) => {
+                    console.error("Error getting location:", error);
+                    alert("Error getting your location. Please enable location services.");
+                    
+                    // Still add kitchens to map with default location
+                    addKitchensToMap();
+                }
+            );
+        } else {
+            alert("Geolocation is not supported by this browser.");
+            
+            // Still add kitchens to map with default location
+            addKitchensToMap();
+        }
+    }
+    
+    function addKitchensToMap() {
+        // Clear existing markers
+        kitchenMarkers.forEach(marker => marker.setMap(null));
+        kitchenMarkers = [];
+        
+        // Add kitchen markers
+        {% for kitchen in kitchens %}
+            const kitchenPosition = {
+                lat: {{ kitchen.location.coordinates[1] }},
+                lng: {{ kitchen.location.coordinates[0] }}
+            };
+            
+            const marker = new google.maps.Marker({
+                position: kitchenPosition,
+                map: map,
+                title: "{{ kitchen.name }}",
+                icon: {
+                    url: "http://maps.google.com/mapfiles/ms/icons/red-dot.png"
+                }
+            });
+            
+            const infoWindow = new google.maps.InfoWindow({
+                content: `
+                    <div class="map-info-window">
+                        <h3>{{ kitchen.name }}</h3>
+                        <p>{{ kitchen.address }}</p>
+                        <p><strong>Hours:</strong> 9 AM - 6 PM</p>
+                        <button class="map-btn" onclick="openRequestModal('{{ kitchen._id }}')">Request Meal</button>
+                    </div>
+                `
+            });
+            
+            marker.addListener("click", () => {
+                infoWindow.open(map, marker);
+            });
+            
+            kitchenMarkers.push(marker);
+        {% endfor %}
+    }
+    
+    function fetchVolunteerLocations() {
+        // In a real app, this would fetch from the server
+        fetch('/api/volunteers-location')
+            .then(response => response.json())
+            .then(volunteers => {
+                // Clear existing volunteer markers
+                volunteerMarkers.forEach(marker => marker.setMap(null));
+                volunteerMarkers = [];
+                
+                // Add volunteer markers
+                volunteers.forEach(volunteer => {
+                    if (volunteer.location && volunteer.location.coordinates) {
+                        const volunteerPosition = {
+                            lat: volunteer.location.coordinates[1],
+                            lng: volunteer.location.coordinates[0]
+                        };
+                        
+                        const marker = new google.maps.Marker({
+                            position: volunteerPosition,
+                            map: map,
+                            title: volunteer.name,
+                            icon: {
+                                url: "http://maps.google.com/mapfiles/ms/icons/yellow-dot.png"
+                            }
+                        });
+                        
+                        const infoWindow = new google.maps.InfoWindow({
+                            content: `
+                                <div class="map-info-window">
+                                    <h3>${volunteer.name}</h3>
+                                    <p><strong>Status:</strong> Available</p>
+                                    <button class="map-btn" onclick="requestDelivery('${volunteer._id}')">Request Delivery</button>
+                                </div>
+                            `
+                        });
+                        
+                        marker.addListener("click", () => {
+                            infoWindow.open(map, marker);
+                        });
+                        
+                        volunteerMarkers.push(marker);
+                    }
+                });
+                
+                // Calculate distances
+                calculateDistances();
+            })
+            .catch(error => {
+                console.error("Error fetching volunteer locations:", error);
+            });
+    }
+    
+    function calculateDistances() {
+        if (!userPosition) return;
+        
+        // Calculate distances to kitchens
+        const kitchenCards = document.querySelectorAll('.kitchen-card');
+        kitchenCards.forEach((card, index) => {
+            if (index < kitchenMarkers.length) {
+                const kitchenPosition = kitchenMarkers[index].getPosition();
+                const distance = getDistance(
+                    userPosition.lat, userPosition.lng,
+                    kitchenPosition.lat(), kitchenPosition.lng()
+                );
+                
+                card.querySelector('.distance-value').textContent = `${distance.toFixed(1)} km away`;
+            }
+        });
+        
+        // Calculate distances to volunteers
+        const volunteerCards = document.querySelectorAll('.volunteer-card');
+        volunteerCards.forEach((card, index) => {
+            if (index < volunteerMarkers.length) {
+                const volunteerPosition = volunteerMarkers[index].getPosition();
+                const distance = getDistance(
+                    userPosition.lat, userPosition.lng,
+                    volunteerPosition.lat(), volunteerPosition.lng()
+                );
+                
+                card.querySelector('.distance-value').textContent = `${distance.toFixed(1)} km away`;
+            }
+        });
+    }
+    
+    // Calculate distance between two points using Haversine formula
+    function getDistance(lat1, lon1, lat2, lon2) {
+        const R = 6371; // Radius of the earth in km
+        const dLat = deg2rad(lat2 - lat1);
+        const dLon = deg2rad(lon2 - lon1);
+        const a = 
+            Math.sin(dLat/2) * Math.sin(dLat/2) +
+            Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * 
+            Math.sin(dLon/2) * Math.sin(dLon/2); 
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
+        const distance = R * c; // Distance in km
+        return distance;
+    }
+    
+    function deg2rad(deg) {
+        return deg * (Math.PI/180);
+    }
+    
+    // Update user location
+    document.getElementById('updateLocation').addEventListener('click', function() {
+        getUserLocation();
+    });
+    
+    // Get directions to a location
+    document.querySelectorAll('.get-directions').forEach(button => {
+        button.addEventListener('click', function() {
+            const lat = parseFloat(this.getAttribute('data-lat'));
+            const lng = parseFloat(this.getAttribute('data-lng'));
+            const destination = { lat: lat, lng: lng };
+            
+            if (!userPosition) {
+                alert('Your current location is not available. Please update your location first.');
+                return;
+            }
+            
+            directionsService.route({
+                origin: userPosition,
+                destination: destination,
+                travelMode: google.maps.TravelMode.DRIVING
+            }, function(response, status) {
+                if (status === 'OK') {
+                    directionsRenderer.setDirections(response);
+                } else {
+                    alert('Directions request failed due to ' + status);
+                }
+            });
+        });
+    });
+    
+    // Filter resources
+    document.getElementById('resourceType').addEventListener('change', function() {
+        const resourceType = this.value;
+        const kitchenSection = document.getElementById('kitchenResources');
+        const volunteerSection = document.getElementById('volunteerResources');
+        
+        if (resourceType === 'all') {
+            kitchenSection.style.display = 'block';
+            volunteerSection.style.display = 'block';
+        } else if (resourceType === 'kitchens') {
+            kitchenSection.style.display = 'block';
+            volunteerSection.style.display = 'none';
+        } else if (resourceType === 'volunteers') {
+            kitchenSection.style.display = 'none';
+            volunteerSection.style.display = 'block';
+        }
+    });
+    
+    // Sort resources by distance or availability
+    document.getElementById('sortBy').addEventListener('change', function() {
+        const sortBy = this.value;
+        
+        if (sortBy === 'distance') {
+            sortResourcesByDistance();
+        } else if (sortBy === 'availability') {
+            // In a real app, this would sort by actual availability data
+            alert('Sorting by availability would be implemented in a real app.');
+        }
+    });
+    
+    function sortResourcesByDistance() {
+        // Sort kitchen cards
+        const kitchenList = document.querySelector('#kitchenResources .resource-list');
+        const kitchenCards = Array.from(kitchenList.querySelectorAll('.resource-card'));
+        
+        kitchenCards.sort((a, b) => {
+            const distanceA = parseFloat(a.querySelector('.distance-value').textContent);
+            const distanceB = parseFloat(b.querySelector('.distance-value').textContent);
+            return distanceA - distanceB;
+        });
+        
+        kitchenCards.forEach(card => kitchenList.appendChild(card));
+        
+        // Sort volunteer cards
+        const volunteerList = document.querySelector('#volunteerResources .resource-list');
+        const volunteerCards = Array.from(volunteerList.querySelectorAll('.resource-card'));
+        
+        volunteerCards.sort((a, b) => {
+            const distanceA = parseFloat(a.querySelector('.distance-value').textContent);
+            const distanceB = parseFloat(b.querySelector('.distance-value').textContent);
+            return distanceA - distanceB;
+        });
+        
+        volunteerCards.forEach(card => volunteerList.appendChild(card));
+    }
+    
+    // Modal functionality
+    const modal = document.getElementById('requestMealModal');
+    const closeModalBtn = document.querySelector('.close-modal');
+    
+    function openRequestModal(kitchenId) {
+        // In a real app, this would pre-fill the form with kitchen details
+        document.getElementById('requestMealForm').setAttribute('data-kitchen-id', kitchenId);
+        modal.style.display = 'block';
+    }
+    
+    closeModalBtn.addEventListener('click', function() {
+        modal.style.display = 'none';
+    });
+    
+    window.addEventListener('click', function(event) {
+        if (event.target == modal) {
+            modal.style.display = 'none';
+        }
+    });
+    
+    // Request meal form submission
+    document.getElementById('requestMealForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const kitchenId = this.getAttribute('data-kitchen-id');
+        const mealType = document.getElementById('mealType').value;
+        const servings = document.getElementById('servings').value;
+        const deliveryAddress = document.getElementById('deliveryAddress').value;
+        const deliveryTime = document.getElementById('deliveryTime').value;
+        const specialInstructions = document.getElementById('specialInstructions').value;
+        
+        // In a real app, this would send data to the server
+        console.log('Requesting meal:', {
+            kitchenId,
+            mealType,
+            servings,
+            deliveryAddress,
+            deliveryTime,
+            specialInstructions
+        });
+        
+        // Close modal and reset form
+        modal.style.display = 'none';
+        document.getElementById('requestMealForm').reset();
+        
+        // Update pending requests count
+        const pendingRequests = parseInt(document.getElementById('pendingRequests').textContent) + 1;
+        document.getElementById('pendingRequests').textContent = pendingRequests;
+        
+        // Show success message (in a real app)
+        alert('Meal request submitted successfully!');
+    });
+    
+    // Initialize request counts
+    document.getElementById('pendingRequests').textContent = '2';
+    document.getElementById('completedRequests').textContent = '1';
+    
+    // Request delivery from volunteer
+    function requestDelivery(volunteerId) {
+        // In a real app, this would open a form or send a request
+        alert(`Requesting delivery from volunteer ID: ${volunteerId}`);
+    }
+    
+    // Initialize map when the page loads
+    window.onload = initMap;
+    
+    // Make openRequestModal available globally
+    window.openRequestModal = openRequestModal;
+    window.requestDelivery = requestDelivery;
+</script>
+{% endblock %}

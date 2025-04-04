@@ -1,0 +1,146 @@
+{% extends 'base.html' %}
+
+{% block title %}FEAST - Community Kitchen Network{% endblock %}
+
+{% block content %}
+<section class="hero">
+    <div class="hero-content">
+        <h1>COMMUNITY KITCHEN NETWORK</h1>
+        <p class="subtitle">Connecting donors, community kitchens, and food seekers via a mobile app and SMS platform.</p>
+        <div class="hero-buttons">
+            <a href="{{ url_for('register') }}" class="btn btn-primary">Join Now</a>
+            <a href="#about" class="btn btn-secondary">Learn More</a>
+        </div>
+    </div>
+</section>
+
+<section id="about" class="about">
+    <div class="container">
+        <h2 class="section-title">About FEAST</h2>
+        <div class="about-content">
+            <div class="about-text">
+                <h3>Aim</h3>
+                <p>Develop a technology-driven food redistribution system that connects donors, community kitchens, and food seekers via a mobile app and SMS platform.</p>
+                
+                <h3>This system will</h3>
+                <ul class="feature-list">
+                    <li>Identify & distribute surplus food efficiently.</li>
+                    <li>Enable real-time coordination between stakeholders.</li>
+                    <li>Ensure inclusivity with both online and offline accessibility.</li>
+                    <li>Optimize logistics for food pickup and delivery.</li>
+                    <li>Promote food safety and responsible donations.</li>
+                </ul>
+                
+                <h3>Goal</h3>
+                <p>To reduce food waste, enhance food security, and foster a sustainable, community-driven meal-sharing network.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="needs">
+    <div class="container">
+        <h2 class="section-title">Community Needs</h2>
+        <div class="needs-grid">
+            <div class="need-card">
+                <div class="need-icon">
+                    <i class="fas fa-utensils"></i>
+                </div>
+                <h3>Access to Nutritious Food</h3>
+                <p>Ensure consistent access to healthy meals for those facing food insecurity.</p>
+            </div>
+            
+            <div class="need-card">
+                <div class="need-icon">
+                    <i class="fas fa-recycle"></i>
+                </div>
+                <h3>Food Waste Reduction</h3>
+                <p>Minimize food waste by redistributing surplus food from restaurants, stores, and households.</p>
+            </div>
+            
+            <div class="need-card">
+                <div class="need-icon">
+                    <i class="fas fa-comments"></i>
+                </div>
+                <h3>Real-Time Coordination</h3>
+                <p>Enable seamless communication between donors, kitchens, food seekers, and volunteers.</p>
+            </div>
+            
+            <div class="need-card">
+                <div class="need-icon">
+                    <i class="fas fa-globe"></i>
+                </div>
+                <h3>Scalable & Inclusive</h3>
+                <p>Ensure accessibility in both urban and rural areas, including an SMS-based option.</p>
+            </div>
+            
+            <div class="need-card">
+                <div class="need-icon">
+                    <i class="fas fa-truck"></i>
+                </div>
+                <h3>Efficient Logistics</h3>
+                <p>Optimize food pickup and delivery to ensure quick, safe distribution.</p>
+            </div>
+            
+            <div class="need-card">
+                <div class="need-icon">
+                    <i class="fas fa-shield-alt"></i>
+                </div>
+                <h3>Food Safety & Quality</h3>
+                <p>Maintain food safety standards and address legal concerns for donors.</p>
+            </div>
+            
+            <div class="need-card">
+                <div class="need-icon">
+                    <i class="fas fa-users"></i>
+                </div>
+                <h3>Community Engagement</h3>
+                <p>Encourage active participation through incentives for donors and volunteers.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="join-us">
+    <div class="container">
+        <h2 class="section-title">Join Our Network</h2>
+        <div class="roles-grid">
+            <div class="role-card">
+                <div class="role-icon">
+                    <i class="fas fa-hand-holding-heart"></i>
+                </div>
+                <h3>Donor</h3>
+                <p>Donate surplus food from restaurants, stores, or homes.</p>
+                <a href="{{ url_for('register') }}" class="btn btn-outline">Register as Donor</a>
+            </div>
+            
+            <div class="role-card">
+                <div class="role-icon">
+                    <i class="fas fa-hands-helping"></i>
+                </div>
+                <h3>Volunteer</h3>
+                <p>Help with food pickup, delivery, and coordination.</p>
+                <a href="{{ url_for('register') }}" class="btn btn-outline">Register as Volunteer</a>
+            </div>
+            
+            <div class="role-card">
+                <div class="role-icon">
+                    <i class="fas fa-store"></i>
+                </div>
+                <h3>Community Kitchen</h3>
+                <p>Prepare and distribute meals to those in need.</p>
+                <a href="{{ url_for('register') }}" class="btn btn-outline">Register as Kitchen</a>
+            </div>
+            
+            <div class="role-card">
+                <div class="role-icon">
+                    <i class="fas fa-user"></i>
+                </div>
+                <h3>Food Seeker</h3>
+                <p>Access nutritious meals when facing food insecurity.</p>
+                <a href="{{ url_for('register') }}" class="btn btn-outline">Register as Seeker</a>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

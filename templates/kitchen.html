@@ -1,0 +1,405 @@
+{% extends 'base.html' %}
+
+{% block title %}Community Kitchen Dashboard - FEAST{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/kitchen.css') }}">
+{% endblock %}
+
+{% block content %}
+<section class="dashboard">
+    <div class="container">
+        <div class="dashboard-header">
+            <h2 class="dashboard-title">Community Kitchen Dashboard</h2>
+            <div class="dashboard-actions">
+                <a href="#" class="btn btn-primary" data-toggle="modal" data-target="#addInventoryModal">Add Inventory</a>
+                <a href="#" class="btn btn-outline">Generate Report</a>
+            </div>
+        </div>
+        
+        <div class="dashboard-stats">
+            <div class="stat-card">
+                <div class="stat-value">{{ inventory|length }}</div>
+                <div class="stat-label">Food Items</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="totalMeals">0</div>
+                <div class="stat-label">Meals Prepared</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="totalServed">0</div>
+                <div class="stat-label">People Served</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="foodSaved">0</div>
+                <div class="stat-label">Food Saved (kg)</div>
+            </div>
+        </div>
+        
+        <div class="dashboard-card">
+            <h3>Kitchen Location</h3>
+            <div id="map" style="height: 300px;"></div>
+        </div>
+        
+        <div class="dashboard-card">
+            <h3>Food Inventory</h3>
+            <div class="inventory-filters">
+                <div class="form-group">
+                    <input type="text" id="searchInventory" class="form-control" placeholder="Search inventory...">
+                </div>
+                <div class="form-group">
+                    <select id="filterInventory" class="form-control">
+                        <option value="all">All Items</option>
+                        <option value="expiring">Expiring Soon</option>
+                        <option value="low">Low Stock</option>
+                    </select>
+                </div>
+            </div>
+            
+            {% if inventory %}
+                <div class="inventory-list">
+                    {% for item in inventory %}
+                        <div class="inventory-item">
+                            <div class="inventory-details">
+                                <div class="inventory-name">{{ item.food_name }}</div>
+                                <div class="inventory-meta">
+                                    <span><strong>Quantity:</strong> {{ item.quantity }}</span>
+                                    <span><strong>Expiry:</strong> {{ item.expiry_date }}</span>
+                                    <span><strong>Source:</strong> {{ item.source }}</span>
+                                </div>
+                            </div>
+                            <div class="inventory-actions">
+                                <button class="btn btn-sm btn-outline edit-inventory" data-id="{{ item._id }}">Edit</button>
+                                <button class="btn btn-sm btn-outline delete-inventory" data-id="{{ item._id }}">Delete</button>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p>No inventory items found.</p>
+            {% endif %}
+        </div>
+        
+        <div class="dashboard-card">
+            <h3>Upcoming Meal Plans</h3>
+            <div class="meal-plan-container">
+                <div class="meal-plan-form">
+                    <h4>Add Meal Plan</h4>
+                    <form id="mealPlanForm">
+                        <div class="form-group">
+                            <label for="mealName">Meal Name</label>
+                            <input type="text" id="mealName" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="mealDate">Date</label>
+                            <input type="date" id="mealDate" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="mealTime">Time</label>
+                            <input type="time" id="mealTime" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="servings">Expected Servings</label>
+                            <input type="number" id="servings" class="form-control" min="1" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="ingredients">Ingredients Needed</label>
+                            <textarea id="ingredients" class="form-control" rows="3" required></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Add Meal Plan</button>
+                    </form>
+                </div>
+                
+                <div class="meal-plans">
+                    <h4>Scheduled Meals</h4>
+                    <div id="mealPlansList">
+                        <!-- Meal plans will be added here dynamically -->
+                        <div class="meal-plan-card">
+                            <div class="meal-plan-header">
+                                <h5>Vegetable Biryani</h5>
+                                <span class="meal-date">05 Apr 2025, 12:00</span>
+                            </div>
+                            <div class="meal-plan-details">
+                                <p><strong>Servings:</strong> 50</p>
+                                <p><strong>Ingredients:</strong> Rice, mixed vegetables, spices, oil</p>
+                            </div>
+                            <div class="meal-plan-actions">
+                                <button class="btn btn-sm btn-outline">Edit</button>
+                                <button class="btn btn-sm btn-outline">Delete</button>
+                                <button class="btn btn-sm btn-primary">Mark as Prepared</button>
+                            </div>
+                        </div>
+                        
+                        <div class="meal-plan-card">
+                            <div class="meal-plan-header">
+                                <h5>Dal and Rice</h5>
+                                <span class="meal-date">06 Apr 2025, 12:00</span>
+                            </div>
+                            <div class="meal-plan-details">
+                                <p><strong>Servings:</strong> 75</p>
+                                <p><strong>Ingredients:</strong> Rice, lentils, spices, oil, vegetables</p>
+                            </div>
+                            <div class="meal-plan-actions">
+                                <button class="btn btn-sm btn-outline">Edit</button>
+                                <button class="btn btn-sm btn-outline">Delete</button>
+                                <button class="btn btn-sm btn-primary">Mark as Prepared</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="dashboard-card">
+            <h3>Donation Requests</h3>
+            <div class="donation-requests">
+                <div class="donation-request-card">
+                    <div class="donation-header">
+                        <h4>Fresh Vegetables</h4>
+                        <span class="donation-status status-pending">Pending</span>
+                    </div>
+                    <div class="donation-details">
+                        <p><strong>Donor:</strong> Local Grocery Store</p>
+                        <p><strong>Quantity:</strong> 25kg</p>
+                        <p><strong>Pickup Address:</strong> 123 Market St, City</p>
+                        <p><strong>Expiry:</strong> 07 Apr 2025</p>
+                    </div>
+                    <div class="donation-actions">
+                        <button class="btn btn-primary">Accept</button>
+                        <button class="btn btn-outline">Decline</button>
+                        <button class="btn btn-outline">Assign Volunteer</button>
+                    </div>
+                </div>
+                
+                <div class="donation-request-card">
+                    <div class="donation-header">
+                        <h4>Bread and Pastries</h4>
+                        <span class="donation-status status-accepted">Accepted</span>
+                    </div>
+                    <div class="donation-details">
+                        <p><strong>Donor:</strong> City Bakery</p>
+                        <p><strong>Quantity:</strong> 50 items</p>
+                        <p><strong>Pickup Address:</strong> 456 Baker Ave, City</p>
+                        <p><strong>Expiry:</strong> 05 Apr 2025</p>
+                    </div>
+                    <div class="donation-actions">
+                        <button class="btn btn-primary" disabled>Accept</button>
+                        <button class="btn btn-outline" disabled>Decline</button>
+                        <button class="btn btn-outline">Assign Volunteer</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Add Inventory Modal -->
+<div class="modal" id="addInventoryModal">
+    <div class="modal-content">
+        <span class="close-modal">&times;</span>
+        <h2>Add Inventory Item</h2>
+        <form id="addInventoryForm">
+            <div class="form-group">
+                <label for="foodName">Food Name</label>
+                <input type="text" id="foodName" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label for="quantity">Quantity</label>
+                <input type="text" id="quantity" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label for="expiryDate">Expiry Date</label>
+                <input type="date" id="expiryDate" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label for="source">Source</label>
+                <input type="text" id="source" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label for="storageLocation">Storage Location</label>
+                <input type="text" id="storageLocation" class="form-control" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Add Item</button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY&callback=initMap" async defer></script>
+<script>
+    // Initialize map
+    function initMap() {
+        // Default position for the kitchen
+        const kitchenPosition = { lat: 20.5937, lng: 78.9629 }; // Center of India (replace with actual kitchen coordinates)
+        
+        const map = new google.maps.Map(document.getElementById("map"), {
+            zoom: 15,
+            center: kitchenPosition,
+        });
+        
+        // Add marker for kitchen location
+        const marker = new google.maps.Marker({
+            position: kitchenPosition,
+            map: map,
+            title: "Community Kitchen Location",
+            icon: {
+                url: "http://maps.google.com/mapfiles/ms/icons/red-dot.png"
+            }
+        });
+    }
+    
+    // Modal functionality
+    const modal = document.getElementById("addInventoryModal");
+    const openModalBtn = document.querySelector("[data-target='#addInventoryModal']");
+    const closeModalBtn = document.querySelector(".close-modal");
+    
+    openModalBtn.addEventListener("click", function() {
+        modal.style.display = "block";
+    });
+    
+    closeModalBtn.addEventListener("click", function() {
+        modal.style.display = "none";
+    });
+    
+    window.addEventListener("click", function(event) {
+        if (event.target == modal) {
+            modal.style.display = "none";
+        }
+    });
+    
+    // Add inventory form submission
+    document.getElementById("addInventoryForm").addEventListener("submit", function(e) {
+        e.preventDefault();
+        
+        // Get form values
+        const foodName = document.getElementById("foodName").value;
+        const quantity = document.getElementById("quantity").value;
+        const expiryDate = document.getElementById("expiryDate").value;
+        const source = document.getElementById("source").value;
+        const storageLocation = document.getElementById("storageLocation").value;
+        
+        // In a real app, this would send data to the server
+        console.log("Adding inventory item:", {
+            foodName,
+            quantity,
+            expiryDate,
+            source,
+            storageLocation
+        });
+        
+        // Close modal and reset form
+        modal.style.display = "none";
+        document.getElementById("addInventoryForm").reset();
+        
+        // Show success message (in a real app)
+        alert("Inventory item added successfully!");
+    });
+    
+    // Add meal plan form submission
+    document.getElementById("mealPlanForm").addEventListener("submit", function(e) {
+        e.preventDefault();
+        
+        // Get form values
+        const mealName = document.getElementById("mealName").value;
+        const mealDate = document.getElementById("mealDate").value;
+        const mealTime = document.getElementById("mealTime").value;
+        const servings = document.getElementById("servings").value;
+        const ingredients = document.getElementById("ingredients").value;
+        
+        // In a real app, this would send data to the server
+        console.log("Adding meal plan:", {
+            mealName,
+            mealDate,
+            mealTime,
+            servings,
+            ingredients
+        });
+        
+        // Create a new meal plan card
+        const mealPlanCard = document.createElement("div");
+        mealPlanCard.className = "meal-plan-card";
+        
+        // Format date for display
+        const formattedDate = new Date(mealDate + "T" + mealTime);
+        const dateOptions = { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' };
+        const displayDate = formattedDate.toLocaleDateString('en-US', dateOptions);
+        
+        mealPlanCard.innerHTML = `
+            <div class="meal-plan-header">
+                <h5>${mealName}</h5>
+                <span class="meal-date">${displayDate}</span>
+            </div>
+            <div class="meal-plan-details">
+                <p><strong>Servings:</strong> ${servings}</p>
+                <p><strong>Ingredients:</strong> ${ingredients}</p>
+            </div>
+            <div class="meal-plan-actions">
+                <button class="btn btn-sm btn-outline">Edit</button>
+                <button class="btn btn-sm btn-outline">Delete</button>
+                <button class="btn btn-sm btn-primary">Mark as Prepared</button>
+            </div>
+        `;
+        
+        // Add the new card to the list
+        document.getElementById("mealPlansList").appendChild(mealPlanCard);
+        
+        // Reset form
+        document.getElementById("mealPlanForm").reset();
+        
+        // Update stats
+        const totalMeals = parseInt(document.getElementById("totalMeals").textContent) + 1;
+        document.getElementById("totalMeals").textContent = totalMeals;
+        
+        const totalServed = parseInt(document.getElementById("totalServed").textContent) + parseInt(servings);
+        document.getElementById("totalServed").textContent = totalServed;
+    });
+    
+    // Initialize stats
+    document.getElementById("totalMeals").textContent = "2";
+    document.getElementById("totalServed").textContent = "125";
+    document.getElementById("foodSaved").textContent = "85";
+    
+    // Search and filter functionality
+    document.getElementById("searchInventory").addEventListener("input", function() {
+        const searchTerm = this.value.toLowerCase();
+        const inventoryItems = document.querySelectorAll(".inventory-item");
+        
+        inventoryItems.forEach(item => {
+            const itemName = item.querySelector(".inventory-name").textContent.toLowerCase();
+            if (itemName.includes(searchTerm)) {
+                item.style.display = "flex";
+            } else {
+                item.style.display = "none";
+            }
+        });
+    });
+    
+    document.getElementById("filterInventory").addEventListener("change", function() {
+        const filterValue = this.value;
+        const inventoryItems = document.querySelectorAll(".inventory-item");
+        
+        inventoryItems.forEach(item => {
+            // In a real app, this would filter based on actual data attributes
+            if (filterValue === "all") {
+                item.style.display = "flex";
+            } else if (filterValue === "expiring") {
+                // Example: show items with "Apr 05" in their text
+                if (item.textContent.includes("05 Apr")) {
+                    item.style.display = "flex";
+                } else {
+                    item.style.display = "none";
+                }
+            } else if (filterValue === "low") {
+                // Example: show items with quantity less than 10
+                const quantityText = item.querySelector(".inventory-meta").textContent;
+                if (quantityText.includes("Quantity: 5") || quantityText.includes("Quantity: 3")) {
+                    item.style.display = "flex";
+                } else {
+                    item.style.display = "none";
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,354 @@
+{% extends 'base.html' %}
+
+{% block title %}Donor Dashboard - FEAST{% endblock %}
+
+{% block head %}
+<script src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY&libraries=places"></script>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/donor.css') }}">
+{% endblock %}
+
+{% block content %}
+<section class="dashboard">
+    <div class="container">
+        <div class="dashboard-header">
+            <h2 class="dashboard-title">Donor Dashboard</h2>
+            <div class="dashboard-actions">
+                <a href="{{ url_for('donate_food') }}" class="btn btn-primary">Donate Food</a>
+                <a href="#" class="btn btn-outline">Donation History</a>
+            </div>
+        </div>
+        
+        <div class="dashboard-stats">
+            <div class="stat-card">
+                <div class="stat-value">{{ donations|length }}</div>
+                <div class="stat-label">Total Donations</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="pendingDonations">0</div>
+                <div class="stat-label">Pending Pickups</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="completedDonations">0</div>
+                <div class="stat-label">Completed Donations</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="peopleImpacted">0</div>
+                <div class="stat-label">People Impacted</div>
+            </div>
+        </div>
+        
+        <div class="dashboard-card">
+            <h3>Impact Summary</h3>
+            <div class="impact-summary">
+                <div class="impact-chart">
+                    <canvas id="impactChart"></canvas>
+                </div>
+                <div class="impact-stats">
+                    <div class="impact-stat">
+                        <h4>Food Waste Reduced</h4>
+                        <p><span id="foodWasteReduced">75</span> kg</p>
+                    </div>
+                    <div class="impact-stat">
+                        <h4>CO2 Emissions Saved</h4>
+                        <p><span id="co2Saved">142</span> kg</p>
+                    </div>
+                    <div class="impact-stat">
+                        <h4>Water Saved</h4>
+                        <p><span id="waterSaved">12,500</span> liters</p>
+                    </div>
+                    <div class="impact-stat">
+                        <h4>Meals Provided</h4>
+                        <p><span id="mealsProvided">250</span></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="dashboard-card">
+            <h3>Donation History</h3>
+            <div class="donation-history">
+                {% if donations %}
+                    {% for donation in donations %}
+                        <div class="donation-card">
+                            <div class="donation-header">
+                                <h4 class="donation-title">{{ donation.food_name }}</h4>
+                                <span class="donation-date">{{ donation.created_at.strftime('%d %b %Y, %H:%M') }}</span>
+                            </div>
+                            <div class="donation-details">
+                                <p><strong>Quantity:</strong> {{ donation.quantity }}</p>
+                                <p><strong>Expiry Date:</strong> {{ donation.expiry_date }}</p>
+                                <p><strong>Pickup Address:</strong> {{ donation.pickup_address }}</p>
+                                <p><strong>Status:</strong> <span class="donation-status status-{{ donation.status }}">{{ donation.status|capitalize }}</span></p>
+                                {% if donation.status == 'accepted' or donation.status == 'completed' %}
+                                    <p><strong>Assigned Volunteer:</strong> John D.</p>
+                                {% endif %}
+                                {% if donation.status == 'completed' %}
+                                    <p><strong>Pickup Date:</strong> 02 Apr 2025, 3:30 PM</p>
+                                    <p><strong>Delivered To:</strong> Community Kitchen East</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-state">
+                        <div class="empty-icon">
+                            <i class="fas fa-box-open"></i>
+                        </div>
+                        <h4>No Donations Yet</h4>
+                        <p>You haven't made any donations yet. Start sharing surplus food with those in need.</p>
+                        <a href="{{ url_for('donate_food') }}" class="btn btn-primary">Donate Food</a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="dashboard-card">
+            <h3>Nearby Community Kitchens</h3>
+            <div id="map"></div>
+            <div class="kitchen-list">
+                <div class="kitchen-item">
+                    <div class="kitchen-info">
+                        <h4>Community Kitchen East</h4>
+                        <p>123 East Street, City</p>
+                        <p><strong>Distance:</strong> 2.3 km</p>
+                        <p><strong>Needs:</strong> Vegetables, Rice, Lentils</p>
+                    </div>
+                    <div class="kitchen-actions">
+                        <button class="btn btn-sm btn-primary donate-to-kitchen" data-kitchen="Community Kitchen East">Donate</button>
+                        <button class="btn btn-sm btn-outline get-directions" data-lat="20.5937" data-lng="78.9629">Directions</button>
+                    </div>
+                </div>
+                
+                <div class="kitchen-item">
+                    <div class="kitchen-info">
+                        <h4>Community Kitchen West</h4>
+                        <p>456 West Avenue, City</p>
+                        <p><strong>Distance:</strong> 3.7 km</p>
+                        <p><strong>Needs:</strong> Fruits, Bread, Milk</p>
+                    </div>
+                    <div class="kitchen-actions">
+                        <button class="btn btn-sm btn-primary donate-to-kitchen" data-kitchen="Community Kitchen West">Donate</button>
+                        <button class="btn btn-sm btn-outline get-directions" data-lat="20.5937" data-lng="78.9629">Directions</button>
+                    </div>
+                </div>
+                
+                <div class="kitchen-item">
+                    <div class="kitchen-info">
+                        <h4>Community Kitchen North</h4>
+                        <p>789 North Road, City</p>
+                        <p><strong>Distance:</strong> 5.1 km</p>
+                        <p><strong>Needs:</strong> Canned Goods, Spices, Oil</p>
+                    </div>
+                    <div class="kitchen-actions">
+                        <button class="btn btn-sm btn-primary donate-to-kitchen" data-kitchen="Community Kitchen North">Donate</button>
+                        <button class="btn btn-sm btn-outline get-directions" data-lat="20.5937" data-lng="78.9629">Directions</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Initialize map
+    let map;
+    let userMarker;
+    let kitchenMarkers = [];
+    let userPosition;
+    let directionsService;
+    let directionsRenderer;
+    
+    function initMap() {
+        // Default center (will be updated with user's location)
+        const defaultCenter = { lat: 20.5937, lng: 78.9629 }; // Center of India
+        
+        map = new google.maps.Map(document.getElementById("map"), {
+            zoom: 12,
+            center: defaultCenter,
+            mapTypeControl: true,
+            streetViewControl: false,
+            fullscreenControl: true,
+        });
+        
+        // Initialize directions service
+        directionsService = new google.maps.DirectionsService();
+        directionsRenderer = new google.maps.DirectionsRenderer({
+            map: map,
+            suppressMarkers: false
+        });
+        
+        // Try to get user's current location
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    userPosition = {
+                        lat: position.coords.latitude,
+                        lng: position.coords.longitude
+                    };
+                    
+                    map.setCenter(userPosition);
+                    
+                    // Create marker for user's position
+                    userMarker = new google.maps.Marker({
+                        position: userPosition,
+                        map: map,
+                        title: "Your Location",
+                        icon: {
+                            url: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png"
+                        }
+                    });
+                    
+                    // Add community kitchens to map
+                    addKitchensToMap();
+                },
+                () => {
+                    console.error("Error: The Geolocation service failed.");
+                    
+                    // Still add kitchens to map with default location
+                    addKitchensToMap();
+                }
+            );
+        } else {
+            console.error("Error: Your browser doesn't support geolocation.");
+            
+            // Still add kitchens to map with default location
+            addKitchensToMap();
+        }
+    }
+    
+    function addKitchensToMap() {
+        // Sample kitchen data (in a real app, this would come from the server)
+        const kitchens = [
+            {
+                name: "Community Kitchen East",
+                position: { lat: 20.5937, lng: 78.9729 },
+                needs: "Vegetables, Rice, Lentils"
+            },
+            {
+                name: "Community Kitchen West",
+                position: { lat: 20.5837, lng: 78.9529 },
+                needs: "Fruits, Bread, Milk"
+            },
+            {
+                name: "Community Kitchen North",
+                position: { lat: 20.6037, lng: 78.9629 },
+                needs: "Canned Goods, Spices, Oil"
+            }
+        ];
+        
+        // Clear existing markers
+        kitchenMarkers.forEach(marker => marker.setMap(null));
+        kitchenMarkers = [];
+        
+        // Add kitchen markers
+        kitchens.forEach(kitchen => {
+            const marker = new google.maps.Marker({
+                position: kitchen.position,
+                map: map,
+                title: kitchen.name,
+                icon: {
+                    url: "http://maps.google.com/mapfiles/ms/icons/red-dot.png"
+                }
+            });
+            
+            const infoWindow = new google.maps.InfoWindow({
+                content: `
+                    <div class="map-info-window">
+                        <h3>${kitchen.name}</h3>
+                        <p><strong>Needs:</strong> ${kitchen.needs}</p>
+                        <button class="map-btn" onclick="donateTo('${kitchen.name}')">Donate</button>
+                    </div>
+                `
+            });
+            
+            marker.addListener("click", () => {
+                infoWindow.open(map, marker);
+            });
+            
+            kitchenMarkers.push(marker);
+        });
+    }
+    
+    // Get directions to a kitchen
+    document.querySelectorAll('.get-directions').forEach(button => {
+        button.addEventListener('click', function() {
+            const lat = parseFloat(this.getAttribute('data-lat'));
+            const lng = parseFloat(this.getAttribute('data-lng'));
+            const destination = { lat: lat, lng: lng };
+            
+            if (!userPosition) {
+                alert('Your current location is not available. Please try again later.');
+                return;
+            }
+            
+            directionsService.route({
+                origin: userPosition,
+                destination: destination,
+                travelMode: google.maps.TravelMode.DRIVING
+            }, function(response, status) {
+                if (status === 'OK') {
+                    directionsRenderer.setDirections(response);
+                } else {
+                    alert('Directions request failed due to ' + status);
+                }
+            });
+        });
+    });
+    
+    // Donate to specific kitchen
+    document.querySelectorAll('.donate-to-kitchen').forEach(button => {
+        button.addEventListener('click', function() {
+            const kitchenName = this.getAttribute('data-kitchen');
+            window.location.href = "{{ url_for('donate_food') }}?kitchen=" + encodeURIComponent(kitchenName);
+        });
+    });
+    
+    // Initialize impact chart
+    function initImpactChart() {
+        const ctx = document.getElementById('impactChart').getContext('2d');
+        const chart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                datasets: [{
+                    label: 'Food Donated (kg)',
+                    data: [12, 19, 8, 15, 12, 9],
+                    backgroundColor: 'rgba(106, 13, 173, 0.7)',
+                    borderColor: 'rgba(106, 13, 173, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    }
+    
+    // Initialize stats
+    function initStats() {
+        document.getElementById('pendingDonations').textContent = '2';
+        document.getElementById('completedDonations').textContent = '5';
+        document.getElementById('peopleImpacted').textContent = '250';
+    }
+    
+    // Initialize when the page loads
+    window.onload = function() {
+        initMap();
+        initImpactChart();
+        initStats();
+    };
+    
+    // Make donateTo function available globally
+    window.donateTo = function(kitchenName) {
+        window.location.href = "{{ url_for('donate_food') }}?kitchen=" + encodeURIComponent(kitchenName);
+    };
+</script>
+{% endblock %}

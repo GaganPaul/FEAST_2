@@ -1,0 +1,307 @@
+{% extends 'base.html' %}
+
+{% block title %}Donate Food - FEAST{% endblock %}
+
+{% block head %}
+<script src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY&libraries=places"></script>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/donate.css') }}">
+{% endblock %}
+
+{% block content %}
+<section class="donation-section">
+    <div class="container">
+        <h2 class="section-title">Donate Food</h2>
+        
+        <div class="form-container">
+            <form method="POST" action="{{ url_for('donate_food') }}" enctype="multipart/form-data">
+                <div class="form-card">
+                    <h3>Food Information</h3>
+                    
+                    <div class="form-group">
+                        <label for="food_name">Food Name/Description</label>
+                        <input type="text" id="food_name" name="food_name" class="form-control" placeholder="e.g., Fresh Vegetables, Cooked Rice, Bread" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="food_type">Food Type</label>
+                        <select id="food_type" name="food_type" class="form-control" required>
+                            <option value="">-- Select Food Type --</option>
+                            <option value="cooked">Cooked Food</option>
+                            <option value="raw">Raw Ingredients</option>
+                            <option value="packaged">Packaged Food</option>
+                            <option value="beverages">Beverages</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="quantity">Quantity</label>
+                        <input type="text" id="quantity" name="quantity" class="form-control" placeholder="e.g., 5kg, 10 servings, 3 boxes" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="expiry_date">Expiry Date</label>
+                        <input type="date" id="expiry_date" name="expiry_date" class="form-control" data-validate-future-date required>
+                        <small class="form-text">For cooked food, please set expiry within 24-48 hours.</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="preparation_date">Preparation/Packaging Date</label>
+                        <input type="date" id="preparation_date" name="preparation_date" class="form-control" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="food_image">Food Image (Optional)</label>
+                        <input type="file" id="food_image" name="food_image" class="form-control" accept="image/*">
+                        <small class="form-text">Upload an image of the food to help volunteers identify it.</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="special_instructions">Special Instructions</label>
+                        <textarea id="special_instructions" name="special_instructions" class="form-control" rows="3" placeholder="Any storage instructions, allergen information, or other details"></textarea>
+                    </div>
+                </div>
+                
+                <div class="form-card">
+                    <h3>Pickup Information</h3>
+                    
+                    <div class="form-group">
+                        <label for="pickup_address">Pickup Address</label>
+                        <textarea id="pickup_address" name="pickup_address" class="form-control" rows="3" required></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="pickup_date">Preferred Pickup Date</label>
+                        <input type="date" id="pickup_date" name="pickup_date" class="form-control" required>
+                    </div>
+                    
+                    <div class="form-group time-range">
+                        <label>Preferred Pickup Time Range</label>
+                        <div class="time-inputs">
+                            <input type="time" id="pickup_time_start" name="pickup_time_start" class="form-control" required>
+                            <span>to</span>
+                            <input type="time" id="pickup_time_end" name="pickup_time_end" class="form-control" required>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="contact_name">Contact Person</label>
+                        <input type="text" id="contact_name" name="contact_name" class="form-control" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="contact_phone">Contact Phone</label>
+                        <input type="tel" id="contact_phone" name="contact_phone" class="form-control" required>
+                    </div>
+                    
+                    <div class="form-group location-group">
+                        <label>Pickup Location</label>
+                        <button type="button" id="getLocationBtn" class="btn btn-outline">Use Current Location</button>
+                        <div id="locationStatus"></div>
+                        <input type="hidden" id="latitude" name="latitude">
+                        <input type="hidden" id="longitude" name="longitude">
+                    </div>
+                    
+                    <div id="map" class="location-map"></div>
+                </div>
+                
+                <div class="form-card">
+                    <h3>Donation Preferences</h3>
+                    
+                    <div class="form-group">
+                        <label for="preferred_kitchen">Preferred Community Kitchen (Optional)</label>
+                        <select id="preferred_kitchen" name="preferred_kitchen" class="form-control">
+                            <option value="">-- No Preference --</option>
+                            <option value="kitchen1">Community Kitchen East</option>
+                            <option value="kitchen2">Community Kitchen West</option>
+                            <option value="kitchen3">Community Kitchen North</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Donation Acknowledgment</label>
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="anonymous" name="anonymous">
+                            <label for="anonymous">Make this donation anonymous</label>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Food Safety Declaration</label>
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="safety_declaration" name="safety_declaration" required>
+                            <label for="safety_declaration">I confirm that the food is safe for consumption, properly stored, and handled according to food safety guidelines.</label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">Submit Donation</button>
+                    <a href="{{ url_for('donor_dashboard') }}" class="btn btn-outline">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Initialize map
+    let map;
+    let marker;
+    
+    function initMap() {
+        // Default center (will be updated with user's location)
+        const defaultCenter = { lat: 20.5937, lng: 78.9629 }; // Center of India
+        
+        map = new google.maps.Map(document.getElementById("map"), {
+            zoom: 15,
+            center: defaultCenter,
+            mapTypeControl: false,
+            streetViewControl: false,
+            fullscreenControl: true,
+        });
+        
+        // Try to get user's current location
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const pos = {
+                        lat: position.coords.latitude,
+                        lng: position.coords.longitude
+                    };
+                    
+                    map.setCenter(pos);
+                    
+                    // Create marker for user's position
+                    marker = new google.maps.Marker({
+                        position: pos,
+                        map: map,
+                        title: "Pickup Location",
+                        draggable: true
+                    });
+                    
+                    // Update hidden form fields
+                    document.getElementById('latitude').value = pos.lat;
+                    document.getElementById('longitude').value = pos.lng;
+                    
+                    // Update coordinates when marker is dragged
+                    marker.addListener('dragend', function() {
+                        const position = marker.getPosition();
+                        document.getElementById('latitude').value = position.lat();
+                        document.getElementById('longitude').value = position.lng();
+                    });
+                },
+                () => {
+                    console.error("Error: The Geolocation service failed.");
+                }
+            );
+        } else {
+            console.error("Error: Your browser doesn't support geolocation.");
+        }
+    }
+    
+    // Get location button
+    document.getElementById('getLocationBtn').addEventListener('click', function() {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const pos = {
+                        lat: position.coords.latitude,
+                        lng: position.coords.longitude
+                    };
+                    
+                    map.setCenter(pos);
+                    
+                    if (marker) {
+                        marker.setPosition(pos);
+                    } else {
+                        marker = new google.maps.Marker({
+                            position: pos,
+                            map: map,
+                            title: "Pickup Location",
+                            draggable: true
+                        });
+                        
+                        // Update coordinates when marker is dragged
+                        marker.addListener('dragend', function() {
+                            const position = marker.getPosition();
+                            document.getElementById('latitude').value = position.lat();
+                            document.getElementById('longitude').value = position.lng();
+                        });
+                    }
+                    
+                    // Update hidden form fields
+                    document.getElementById('latitude').value = pos.lat;
+                    document.getElementById('longitude').value = pos.lng;
+                    
+                    // Show success message
+                    document.getElementById('locationStatus').textContent = 'Location captured successfully!';
+                    document.getElementById('locationStatus').className = 'success-text';
+                },
+                (error) => {
+                    console.error("Error getting location:", error);
+                    document.getElementById('locationStatus').textContent = 'Failed to get location. Please try again.';
+                    document.getElementById('locationStatus').className = 'error-text';
+                }
+            );
+        } else {
+            alert("Geolocation is not supported by this browser.");
+        }
+    });
+    
+    // Form validation
+    document.querySelector('form').addEventListener('submit', function(e) {
+        // Validate expiry date
+        const expiryDate = new Date(document.getElementById('expiry_date').value);
+        const today = new Date();
+        
+        if (expiryDate < today) {
+            e.preventDefault();
+            alert('Expiry date must be in the future.');
+            return;
+        }
+        
+        // Validate pickup date
+        const pickupDate = new Date(document.getElementById('pickup_date').value);
+        
+        if (pickupDate < today) {
+            e.preventDefault();
+            alert('Pickup date must be in the future.');
+            return;
+        }
+        
+        // Validate time range
+        const startTime = document.getElementById('pickup_time_start').value;
+        const endTime = document.getElementById('pickup_time_end').value;
+        
+        if (startTime >= endTime) {
+            e.preventDefault();
+            alert('End time must be after start time.');
+            return;
+        }
+    });
+    
+    // Pre-fill preferred kitchen if provided in URL
+    window.addEventListener('load', function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const kitchen = urlParams.get('kitchen');
+        
+        if (kitchen) {
+            const kitchenSelect = document.getElementById('preferred_kitchen');
+            
+            // Find option with matching text and select it
+            for (let i = 0; i < kitchenSelect.options.length; i++) {
+                if (kitchenSelect.options[i].text === kitchen) {
+                    kitchenSelect.selectedIndex = i;
+                    break;
+                }
+            }
+        }
+        
+        // Initialize map
+        initMap();
+    });
+</script>
+{% endblock %}
