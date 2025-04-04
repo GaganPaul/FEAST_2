@@ -473,6 +473,7 @@ def login():
             if check_password_hash(login_user['password'], request.form['password']):
                 session['username'] = login_user['username']
                 session['role'] = login_user['role']
+                session['user_id'] = str(login_user['_id'])  # Convert ObjectId to string
                 
                 # Redirect based on role
                 if login_user['role'] == 'donor':
@@ -721,7 +722,11 @@ def uploaded_file(filename):
 @app.route('/request_food', methods=['GET', 'POST'])
 def request_food():
     if 'user_id' not in session:
-        flash('Please login first', 'error')
+        flash('Please login to request food', 'error')
+        return redirect(url_for('login'))
+    
+    if session['role'] != 'seeker':
+        flash('Only food seekers can request food. Please login with a seeker account.', 'error')
         return redirect(url_for('login'))
     
     if request.method == 'POST':
