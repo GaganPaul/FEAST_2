@@ -446,7 +446,7 @@ def register():
             
             # Redirect based on role
             if request.form['role'] == 'donor':
-                return redirect(url_for('donor_dashboard'))
+                return redirect(url_for('donor'))
             elif request.form['role'] == 'kitchen':
                 return redirect(url_for('kitchen_dashboard'))
             elif request.form['role'] == 'volunteer':
@@ -473,10 +473,11 @@ def login():
             if check_password_hash(login_user['password'], request.form['password']):
                 session['username'] = login_user['username']
                 session['role'] = login_user['role']
+                session['user_id'] = str(login_user['_id'])  # Convert ObjectId to string
                 
                 # Redirect based on role
                 if login_user['role'] == 'donor':
-                    return redirect(url_for('donor_dashboard'))
+                    return redirect(url_for('donor'))
                 elif login_user['role'] == 'kitchen':
                     return redirect(url_for('kitchen_dashboard'))
                 elif login_user['role'] == 'volunteer':
@@ -507,9 +508,9 @@ def donor_dashboard():
     # Get donor's donations
     donations = list(mongo.db.donations.find({'donor': session['username']}))
     
-    return render_template('donate.html', donations=donations)
+    return render_template('donor.html', donations=donations)
 
-@app.route('/donate', methods=['GET', 'POST'])
+# @app.route('/donate', methods=['GET', 'POST'])
 @app.route('/donate-food', methods=['GET', 'POST'])
 def donate_food():
     if 'username' not in session or session['role'] != 'donor':
@@ -569,7 +570,7 @@ def donate_food():
         
         mongo.db.donations.insert_one(donation)
         flash('Food donation registered successfully!')
-        return redirect(url_for('donor_dashboard'))
+        return redirect(url_for('donor'))
     
     # For GET requests, show the donation form
     return render_template('donate.html')
@@ -829,37 +830,6 @@ def get_volunteer_locations():
 def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
-@app.route('/request_food', methods=['GET', 'POST'])
-def request_food():
-    if 'user_id' not in session:
-        flash('Please login first', 'error')
-        return redirect(url_for('login'))
-    
-    if request.method == 'POST':
-        # Get dietary restrictions from checkboxes
-        dietary_restrictions = request.form.getlist('dietary_restrictions[]')
-        
-        food_request = {
-            'user_id': session['user_id'],
-            'food_type': request.form.get('food_type'),
-            'specific_items': request.form.get('specific_items'),
-            'servings': request.form.get('servings'),
-            'dietary_restrictions': dietary_restrictions,
-            'delivery_method': request.form.get('delivery_method'),
-            'delivery_address': request.form.get('delivery_address'),
-            'delivery_instructions': request.form.get('delivery_instructions'),
-            'contact_name': request.form.get('contact_name'),
-            'contact_phone': request.form.get('contact_phone'),
-            'contact_email': request.form.get('contact_email'),
-            'status': 'pending',
-            'created_at': datetime.utcnow()
-        }
-        
-        mongo.db.food_requests.insert_one(food_request)
-        flash('Food request submitted successfully!', 'success')
-        return redirect(url_for('seeker_dashboard'))
-    
-    return render_template('request_food.html')
 
 if __name__ == '__main__':
     app.run(debug=True, use_reloader=False, host='0.0.0.0', port=5000)
