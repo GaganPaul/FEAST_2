@@ -3,6 +3,8 @@
 {% block title %}Community Kitchen Dashboard - FEAST{% endblock %}
 
 {% block head %}
+<!-- Add Leaflet.js CSS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
 <link rel="stylesheet" href="{{ url_for('static', filename='css/kitchen.css') }}">
 {% endblock %}
 
@@ -16,7 +18,7 @@
                 <a href="#" class="btn btn-outline">Generate Report</a>
             </div>
         </div>
-        
+
         <div class="dashboard-stats">
             <div class="stat-card">
                 <div class="stat-value">{{ inventory|length }}</div>
@@ -35,12 +37,12 @@
                 <div class="stat-label">Food Saved (kg)</div>
             </div>
         </div>
-        
+
         <div class="dashboard-card">
             <h3>Kitchen Location</h3>
             <div id="map" style="height: 300px;"></div>
         </div>
-        
+
         <div class="dashboard-card">
             <h3>Food Inventory</h3>
             <div class="inventory-filters">
@@ -55,7 +57,7 @@
                     </select>
                 </div>
             </div>
-            
+
             {% if inventory %}
                 <div class="inventory-list">
                     {% for item in inventory %}
@@ -79,7 +81,7 @@
                 <p>No inventory items found.</p>
             {% endif %}
         </div>
-        
+
         <div class="dashboard-card">
             <h3>Upcoming Meal Plans</h3>
             <div class="meal-plan-container">
@@ -109,7 +111,7 @@
                         <button type="submit" class="btn btn-primary">Add Meal Plan</button>
                     </form>
                 </div>
-                
+
                 <div class="meal-plans">
                     <h4>Scheduled Meals</h4>
                     <div id="mealPlansList">
@@ -129,7 +131,7 @@
                                 <button class="btn btn-sm btn-primary">Mark as Prepared</button>
                             </div>
                         </div>
-                        
+
                         <div class="meal-plan-card">
                             <div class="meal-plan-header">
                                 <h5>Dal and Rice</h5>
@@ -149,7 +151,7 @@
                 </div>
             </div>
         </div>
-        
+
         <div class="dashboard-card">
             <h3>Donation Requests</h3>
             <div class="donation-requests">
@@ -170,7 +172,7 @@
                         <button class="btn btn-outline">Assign Volunteer</button>
                     </div>
                 </div>
-                
+
                 <div class="donation-request-card">
                     <div class="donation-header">
                         <h4>Bread and Pastries</h4>
@@ -196,7 +198,7 @@
 <!-- Add Inventory Modal -->
 <div class="modal" id="addInventoryModal">
     <div class="modal-content">
-        <span class="close-modal">&times;</span>
+        <span class="close-modal">×</span>
         <h2>Add Inventory Item</h2>
         <form id="addInventoryForm">
             <div class="form-group">
@@ -224,7 +226,7 @@
                 <input type="file" id="foodImage" name="foodImage" class="form-control" accept="image/*">
                 <small class="form-text">Upload an image for AI food analysis</small>
             </div>
-            
+
             <div id="foodAnalysisResult" class="analysis-result" style="display: none;">
                 <h4>Food Analysis Results</h4>
                 <div class="analysis-content">
@@ -244,66 +246,125 @@
                     <div id="nutritionContent"></div>
                 </div>
             </div>
-            
+
             <button type="submit" class="btn btn-primary">Add Item</button>
         </form>
     </div>
 </div>
+{% endblock %}
 
 {% block scripts %}
-<script src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY&callback=initMap" async defer></script>
+<!-- Add Leaflet.js JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script>
-    // Initialize map
+    // Initialize Leaflet map
+    let map;
+    let kitchenMarker;
+    let nearbyMarkers = [];
+
     function initMap() {
-        // Default position for the kitchen
-        const kitchenPosition = { lat: 20.5937, lng: 78.9629 }; // Center of India (replace with actual kitchen coordinates)
-        
-        const map = new google.maps.Map(document.getElementById("map"), {
-            zoom: 15,
-            center: kitchenPosition,
+        // Default center (Center of India, replace with actual kitchen coordinates)
+        map = L.map('map').setView([20.5937, 78.9629], 12);
+
+        // Add OpenStreetMap tiles
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            maxZoom: 18,
+        }).addTo(map);
+
+        // Define this kitchen's location (replace with actual coordinates if available)
+        const kitchenPosition = [20.5937, 78.9629]; // Example: Community Kitchen East
+
+        // Add marker for this kitchen (red circle)
+        kitchenMarker = L.circleMarker(kitchenPosition, {
+            radius: 8,
+            fillColor: "#FF0000",
+            color: "#FF0000",
+            weight: 1,
+            opacity: 1,
+            fillOpacity: 0.8
+        }).addTo(map)
+        .bindPopup("This Community Kitchen");
+
+        // Define nearby community kitchens (same as Donor Dashboard, excluding this one)
+        const nearbyKitchens = [
+            {name: "Community Kitchen West", position: [20.5837, 78.9529], needs: "Fruits, Bread, Milk"},
+            {name: "Community Kitchen North", position: [20.6037, 78.9629], needs: "Canned Goods, Spices, Oil"}
+        ];
+
+        // Add nearby kitchen markers (red circles)
+        nearbyKitchens.forEach(kitchen => {
+            const marker = L.circleMarker(kitchen.position, {
+                radius: 6,
+                fillColor: "#FF0000",
+                color: "#FF0000",
+                weight: 1,
+                opacity: 1,
+                fillOpacity: 0.8
+            }).addTo(map)
+            .bindPopup(`
+                <div class="map-info-window">
+                    <h3>${kitchen.name}</h3>
+                    <p><strong>Needs:</strong> ${kitchen.needs}</p>
+                </div>
+            `);
+            nearbyMarkers.push(marker);
         });
-        
-        // Add marker for kitchen location
-        const marker = new google.maps.Marker({
-            position: kitchenPosition,
-            map: map,
-            title: "Community Kitchen Location",
-            icon: {
-                url: "http://maps.google.com/mapfiles/ms/icons/red-dot.png"
-            }
-        });
+
+        // Try to get user's current location (optional, for context)
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const userPosition = [position.coords.latitude, position.coords.longitude];
+                    L.circleMarker(userPosition, {
+                        radius: 8,
+                        fillColor: "#0000FF",
+                        color: "#0000FF",
+                        weight: 1,
+                        opacity: 1,
+                        fillOpacity: 0.8
+                    }).addTo(map)
+                    .bindPopup("Your Current Location");
+                },
+                () => {
+                    console.error("Error: The Geolocation service failed.");
+                }
+            );
+        } else {
+            console.error("Error: Your browser doesn't support geolocation.");
+        }
     }
-    
+
     // Modal functionality
     const modal = document.getElementById("addInventoryModal");
     const openModalBtn = document.querySelector("[data-target='#addInventoryModal']");
     const closeModalBtn = document.querySelector(".close-modal");
-    
+
     openModalBtn.addEventListener("click", function() {
         modal.style.display = "block";
     });
-    
+
     closeModalBtn.addEventListener("click", function() {
         modal.style.display = "none";
     });
-    
+
     window.addEventListener("click", function(event) {
         if (event.target == modal) {
             modal.style.display = "none";
         }
     });
-    
+
     // Add inventory form submission
     document.getElementById("addInventoryForm").addEventListener("submit", function(e) {
         e.preventDefault();
-        
+
         // Get form values
         const foodName = document.getElementById("foodName").value;
         const quantity = document.getElementById("quantity").value;
         const expiryDate = document.getElementById("expiryDate").value;
         const source = document.getElementById("source").value;
         const storageLocation = document.getElementById("storageLocation").value;
-        
+
         // In a real app, this would send data to the server
         console.log("Adding inventory item:", {
             foodName,
@@ -312,54 +373,54 @@
             source,
             storageLocation
         });
-        
+
         // Close modal and reset form
         modal.style.display = "none";
         document.getElementById("addInventoryForm").reset();
         document.getElementById("foodAnalysisResult").style.display = "none";
         document.getElementById("nutritionInfo").style.display = "none";
-        
+
         // Show success message (in a real app)
         alert("Inventory item added successfully!");
     });
-    
+
     // Food image analysis
     document.getElementById('foodImage').addEventListener('change', function(e) {
         const file = e.target.files[0];
         if (!file) return;
-        
+
         // Show preview
         const reader = new FileReader();
         reader.onload = function(event) {
             document.getElementById('foodPreviewImage').src = event.target.result;
         }
         reader.readAsDataURL(file);
-        
+
         // Create form data for analysis
         const formData = new FormData();
         formData.append('food_image', file);
-        
+
         // Use today's date for preparation date
         const today = new Date();
-        const formattedDate = today.getDate().toString().padStart(2, '0') + '-' + 
-                             (today.getMonth() + 1).toString().padStart(2, '0') + '-' + 
+        const formattedDate = today.getDate().toString().padStart(2, '0') + '-' +
+                             (today.getMonth() + 1).toString().padStart(2, '0') + '-' +
                              today.getFullYear();
-        
+
         formData.append('prepared_at', formattedDate);
         formData.append('food_quantity', document.getElementById('quantity').value || '1 serving');
-        
+
         // Add food name if already entered by user
         if (document.getElementById('foodName').value) {
             formData.append('food_name', document.getElementById('foodName').value);
         }
-        
+
         // Show loading state
         document.getElementById('foodAnalysisResult').style.display = 'block';
         document.getElementById('detectedFood').textContent = 'Analyzing...';
         document.getElementById('foodFreshness').textContent = 'Checking...';
         document.getElementById('shelfLife').textContent = 'Calculating...';
         document.getElementById('expiryDate').textContent = 'Estimating...';
-        
+
         // Send to API for analysis
         fetch('/api/analyze-food', {
             method: 'POST',
@@ -371,15 +432,15 @@
                 alert('Error analyzing food: ' + data.error);
                 return;
             }
-            
+
             // Update form with detected food if not already filled
             if (!document.getElementById('foodName').value) {
                 document.getElementById('foodName').value = data.food_name;
             }
-            
+
             // Update analysis results
             document.getElementById('detectedFood').textContent = data.food_name;
-            
+
             // Update freshness info
             const qualityCheck = data.quality_check || {};
             if (qualityCheck.is_fresh === true) {
@@ -392,11 +453,11 @@
                 document.getElementById('foodFreshness').textContent = '⚠️ Uncertain: ' + (qualityCheck.reason || 'Unable to determine');
                 document.getElementById('foodFreshness').className = 'text-warning';
             }
-            
+
             // Update shelf life and expiry
             document.getElementById('shelfLife').textContent = data.shelf_life_days + ' days (' + data.shelf_life_hours + ' hours)';
             document.getElementById('expiryDate').textContent = data.expiry_date;
-            
+
             // If expiry date is calculated, update the form field
             if (data.expiry_date && data.expiry_date !== 'Unknown') {
                 try {
@@ -417,7 +478,7 @@
             document.getElementById('detectedFood').className = 'text-danger';
         });
     });
-    
+
     // Get nutritional information
     document.getElementById('getNutritionBtn').addEventListener('click', function() {
         const foodName = document.getElementById('detectedFood').textContent;
@@ -425,11 +486,11 @@
             alert('Please wait for food analysis to complete first.');
             return;
         }
-        
+
         // Show loading state
         document.getElementById('nutritionInfo').style.display = 'block';
         document.getElementById('nutritionContent').innerHTML = '<p>Loading nutritional information...</p>';
-        
+
         // Fetch nutritional info
         fetch('/api/nutritional-info', {
             method: 'POST',
@@ -444,11 +505,11 @@
                 document.getElementById('nutritionContent').innerHTML = `<p class="text-danger">${data.error}</p>`;
                 return;
             }
-            
+
             try {
                 // Parse nutrition info
                 const nutritionInfo = JSON.parse(data.nutrition_info);
-                
+
                 // Create HTML table for nutrition info
                 let nutritionHtml = `
                     <table class="nutrition-table">
@@ -480,7 +541,7 @@
                     <p><strong>Vitamins:</strong> ${nutritionInfo.vitamins.join(', ')}</p>
                     <p><strong>Minerals:</strong> ${nutritionInfo.minerals.join(', ')}</p>
                 `;
-                
+
                 document.getElementById('nutritionContent').innerHTML = nutritionHtml;
             } catch (e) {
                 console.error('Error parsing nutrition info:', e);
@@ -495,18 +556,18 @@
             document.getElementById('nutritionContent').innerHTML = '<p class="text-danger">Failed to fetch nutritional information.</p>';
         });
     });
-    
+
     // Add meal plan form submission
     document.getElementById("mealPlanForm").addEventListener("submit", function(e) {
         e.preventDefault();
-        
+
         // Get form values
         const mealName = document.getElementById("mealName").value;
         const mealDate = document.getElementById("mealDate").value;
         const mealTime = document.getElementById("mealTime").value;
         const servings = document.getElementById("servings").value;
         const ingredients = document.getElementById("ingredients").value;
-        
+
         // In a real app, this would send data to the server
         console.log("Adding meal plan:", {
             mealName,
@@ -515,16 +576,16 @@
             servings,
             ingredients
         });
-        
+
         // Create a new meal plan card
         const mealPlanCard = document.createElement("div");
         mealPlanCard.className = "meal-plan-card";
-        
+
         // Format date for display
         const formattedDate = new Date(mealDate + "T" + mealTime);
         const dateOptions = { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' };
         const displayDate = formattedDate.toLocaleDateString('en-US', dateOptions);
-        
+
         mealPlanCard.innerHTML = `
             <div class="meal-plan-header">
                 <h5>${mealName}</h5>
@@ -540,31 +601,31 @@
                 <button class="btn btn-sm btn-primary">Mark as Prepared</button>
             </div>
         `;
-        
+
         // Add the new card to the list
         document.getElementById("mealPlansList").appendChild(mealPlanCard);
-        
+
         // Reset form
         document.getElementById("mealPlanForm").reset();
-        
+
         // Update stats
         const totalMeals = parseInt(document.getElementById("totalMeals").textContent) + 1;
         document.getElementById("totalMeals").textContent = totalMeals;
-        
+
         const totalServed = parseInt(document.getElementById("totalServed").textContent) + parseInt(servings);
         document.getElementById("totalServed").textContent = totalServed;
     });
-    
+
     // Initialize stats
     document.getElementById("totalMeals").textContent = "2";
     document.getElementById("totalServed").textContent = "125";
     document.getElementById("foodSaved").textContent = "85";
-    
+
     // Search and filter functionality
     document.getElementById("searchInventory").addEventListener("input", function() {
         const searchTerm = this.value.toLowerCase();
         const inventoryItems = document.querySelectorAll(".inventory-item");
-        
+
         inventoryItems.forEach(item => {
             const itemName = item.querySelector(".inventory-name").textContent.toLowerCase();
             if (itemName.includes(searchTerm)) {
@@ -574,11 +635,11 @@
             }
         });
     });
-    
+
     document.getElementById("filterInventory").addEventListener("change", function() {
         const filterValue = this.value;
         const inventoryItems = document.querySelectorAll(".inventory-item");
-        
+
         inventoryItems.forEach(item => {
             // In a real app, this would filter based on actual data attributes
             if (filterValue === "all") {
@@ -600,6 +661,11 @@
                 }
             }
         });
+    });
+
+    // Initialize the map on page load
+    window.addEventListener("load", function() {
+        initMap();
     });
 </script>
 {% endblock %}

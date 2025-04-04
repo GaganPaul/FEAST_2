@@ -613,6 +613,61 @@ def seeker_dashboard():
     
     return render_template('seeker.html', meal_plans=meal_plans, my_requests=my_requests)
 
+@app.route('/request-food', methods=['GET', 'POST'])
+def request_food():
+    if 'username' not in session or session['role'] != 'seeker':
+        flash('Please login as a food seeker to request food')
+        return redirect(url_for('login'))
+    
+    if request.method == 'POST':
+        # Process the food request form
+        food_type = request.form.get('food_type')
+        servings = request.form.get('servings')
+        delivery_address = request.form.get('delivery_address')
+        preferred_date = request.form.get('preferred_date')
+        special_notes = request.form.get('special_notes', '')
+        
+        # Get dietary restrictions (returns list if multiple selected, or None if none selected)
+        dietary_restrictions = request.form.getlist('dietary_restrictions[]')
+        
+        # Additional form fields
+        preferred_time = request.form.get('preferred_time', '')
+        contact_name = request.form.get('contact_name', session.get('name', ''))
+        contact_phone = request.form.get('contact_phone', '')
+        alternate_contact = request.form.get('alternate_contact', '')
+        text_updates = True if request.form.get('text_updates') == 'yes' else False
+        
+        # For specific items food type
+        specific_items = request.form.get('specific_items', '') if food_type == 'specific_items' else ''
+        
+        # Create food request record
+        food_request = {
+            'seeker': session['username'],
+            'food_type': food_type,
+            'specific_items': specific_items,
+            'servings': servings,
+            'dietary_restrictions': dietary_restrictions,
+            'delivery_address': delivery_address,
+            'preferred_date': preferred_date,
+            'preferred_time': preferred_time,
+            'contact_name': contact_name,
+            'contact_phone': contact_phone,
+            'alternate_contact': alternate_contact,
+            'text_updates': text_updates,
+            'special_notes': special_notes,
+            'status': 'pending',
+            'created_at': datetime.now()
+        }
+        
+        # Save to database
+        mongo.db.requests.insert_one(food_request)
+        
+        flash('Food request submitted successfully!')
+        return redirect(url_for('seeker_dashboard'))
+    
+    # For GET requests, show the food request form
+    return render_template('request_food.html')
+
 # API for food analysis
 @app.route('/api/analyze-food', methods=['POST'])
 def analyze_food_api():
@@ -712,6 +767,62 @@ def nutritional_info_api():
     except Exception as e:
         logger.error(f"Error getting nutritional info: {str(e)}")
         return jsonify({'error': str(e)}), 500
+
+# Route to handle food request cancellation
+@app.route('/cancel-request/<request_id>', methods=['POST'])
+def cancel_request(request_id):
+    if 'username' not in session:
+        return jsonify({'success': False, 'message': 'You must be logged in to cancel a request'}), 401
+    
+    try:
+        # Find the request
+        food_request = mongo.db.requests.find_one({'_id': ObjectId(request_id)})
+        
+        if not food_request:
+            return jsonify({'success': False, 'message': 'Request not found'}), 404
+        
+        # Check if the request belongs to the current user
+        if food_request['seeker'] != session['username']:
+            return jsonify({'success': False, 'message': 'You can only cancel your own requests'}), 403
+        
+        # Check if the request is in a cancellable state (pending)
+        if food_request['status'] != 'pending':
+            return jsonify({'success': False, 'message': 'Only pending requests can be cancelled'}), 400
+        
+        # Update the request status to cancelled
+        mongo.db.requests.update_one(
+            {'_id': ObjectId(request_id)},
+            {'$set': {'status': 'cancelled', 'cancelled_at': datetime.now()}}
+        )
+        
+        return jsonify({'success': True, 'message': 'Request cancelled successfully'})
+    
+    except Exception as e:
+        app.logger.error(f"Error cancelling request: {str(e)}")
+        return jsonify({'success': False, 'message': 'An error occurred while cancelling the request'}), 500
+
+# API to get volunteer locations (for map display)
+@app.route('/api/volunteers-location', methods=['GET'])
+def get_volunteer_locations():
+    if 'username' not in session:
+        return jsonify([])
+    
+    try:
+        # Get active volunteers with location data
+        volunteers = list(mongo.db.users.find(
+            {'role': 'volunteer', 'status': 'active'},
+            {'_id': 1, 'name': 1, 'location': 1}
+        ))
+        
+        # Convert ObjectId to string for JSON serialization
+        for volunteer in volunteers:
+            volunteer['_id'] = str(volunteer['_id'])
+        
+        return jsonify(volunteers)
+    
+    except Exception as e:
+        app.logger.error(f"Error fetching volunteer locations: {str(e)}")
+        return jsonify([])
 
 # Serve uploaded files
 @app.route('/uploads/<filename>')
