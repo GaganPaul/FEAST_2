@@ -829,5 +829,37 @@ def get_volunteer_locations():
 def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
+@app.route('/request_food', methods=['GET', 'POST'])
+def request_food():
+    if 'user_id' not in session:
+        flash('Please login first', 'error')
+        return redirect(url_for('login'))
+    
+    if request.method == 'POST':
+        # Get dietary restrictions from checkboxes
+        dietary_restrictions = request.form.getlist('dietary_restrictions[]')
+        
+        food_request = {
+            'user_id': session['user_id'],
+            'food_type': request.form.get('food_type'),
+            'specific_items': request.form.get('specific_items'),
+            'servings': request.form.get('servings'),
+            'dietary_restrictions': dietary_restrictions,
+            'delivery_method': request.form.get('delivery_method'),
+            'delivery_address': request.form.get('delivery_address'),
+            'delivery_instructions': request.form.get('delivery_instructions'),
+            'contact_name': request.form.get('contact_name'),
+            'contact_phone': request.form.get('contact_phone'),
+            'contact_email': request.form.get('contact_email'),
+            'status': 'pending',
+            'created_at': datetime.utcnow()
+        }
+        
+        mongo.db.food_requests.insert_one(food_request)
+        flash('Food request submitted successfully!', 'success')
+        return redirect(url_for('seeker_dashboard'))
+    
+    return render_template('request_food.html')
+
 if __name__ == '__main__':
     app.run(debug=True, use_reloader=False, host='0.0.0.0', port=5000)
