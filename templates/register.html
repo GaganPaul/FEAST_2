@@ -72,6 +72,18 @@
             </div>
         </div>
         
+        <!-- Buyer-specific fields -->
+        <div id="buyer-fields" style="display: none;">
+            <div class="form-group">
+                <label for="preferred_payment">Preferred Payment Method</label>
+                <select id="preferred_payment" name="preferred_payment" class="form-control">
+                    <option value="cash">Cash</option>
+                    <option value="upi">UPI</option>
+                    <option value="card">Card</option>
+                </select>
+            </div>
+        </div>
+        
         <div class="form-group">
             <label for="password">Password</label>
             <input type="password" id="password" name="password" class="form-control" required>
@@ -107,6 +119,7 @@
         document.getElementById('kitchen-fields').style.display = 'none';
         document.getElementById('volunteer-fields').style.display = 'none';
         document.getElementById('seeker-fields').style.display = 'none';
+        document.getElementById('buyer-fields').style.display = 'none';
         
         // Show fields based on selected role
         if (role === 'kitchen') {
@@ -115,6 +128,8 @@
             document.getElementById('volunteer-fields').style.display = 'block';
         } else if (role === 'seeker') {
             document.getElementById('seeker-fields').style.display = 'block';
+        } else if (role === 'buyer') {
+            document.getElementById('buyer-fields').style.display = 'block';
         }
     });
 </script>

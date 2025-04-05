@@ -21,19 +21,19 @@
         
         <div class="dashboard-stats">
             <div class="stat-card">
-                <div class="stat-value">{{ my_requests|length }}</div>
+                <div class="stat-value">8</div>
                 <div class="stat-label">Total Purchases</div>
             </div>
             <div class="stat-card">
-                <div class="stat-value" id="pendingPurchases">0</div>
+                <div class="stat-value" id="pendingPurchases">3</div>
                 <div class="stat-label">Pending Orders</div>
             </div>
             <div class="stat-card">
-                <div class="stat-value" id="completedPurchases">0</div>
+                <div class="stat-value" id="completedPurchases">5</div>
                 <div class="stat-label">Completed Orders</div>
             </div>
             <div class="stat-card">
-                <div class="stat-value" id="savedAmount">₹0</div>
+                <div class="stat-value" id="savedAmount">₹750</div>
                 <div class="stat-label">Money Saved</div>
             </div>
         </div>
@@ -41,82 +41,118 @@
         <div class="dashboard-card">
             <h3>Available Food Items for Purchase</h3>
             <div class="food-items-grid">
-                {% if meal_plans %}
-                    {% for meal in meal_plans %}
-                        <div class="food-item-card">
-                            <div class="food-item-image">
-                                {% if meal.image_url %}
-                                    <img src="{{ meal.image_url }}" alt="{{ meal.name }}">
-                                {% else %}
-                                    <div class="placeholder-image">
-                                        <i class="fas fa-utensils"></i>
-                                    </div>
-                                {% endif %}
-                                <span class="food-item-price">₹{{ meal.price }}</span>
-                            </div>
-                            <div class="food-item-details">
-                                <h4 class="food-item-title">{{ meal.name }}</h4>
-                                <p class="food-item-description">{{ meal.description }}</p>
-                                <div class="food-item-meta">
-                                    <span><i class="fas fa-calendar"></i> Expires: {{ meal.expiry_date }}</span>
-                                    <span><i class="fas fa-weight"></i> Quantity: {{ meal.quantity }}</span>
-                                </div>
-                                <div class="food-item-actions">
-                                    <button class="btn btn-sm btn-primary purchase-btn" data-meal-id="{{ meal._id }}">Purchase</button>
-                                    <button class="btn btn-sm btn-outline view-details-btn" data-meal-id="{{ meal._id }}">Details</button>
-                                </div>
-                            </div>
+                <!-- Hardcoded food items for demonstration -->
+                <div class="food-item-card">
+                    <div class="food-item-image">
+                        <div class="placeholder-image">
+                            <i class="fas fa-utensils"></i>
                         </div>
-                    {% endfor %}
-                {% else %}
-                    <div class="empty-state">
-                        <div class="empty-icon">
-                            <i class="fas fa-shopping-basket"></i>
-                        </div>
-                        <h4>No Food Items Available</h4>
-                        <p>There are currently no food items available for purchase. Please check back later.</p>
+                        <span class="food-item-price">₹120</span>
                     </div>
-                {% endif %}
+                    <div class="food-item-details">
+                        <h4 class="food-item-title">Vegetable Biryani</h4>
+                        <p class="food-item-description">Fragrant basmati rice cooked with mixed vegetables and aromatic spices.</p>
+                        <div class="food-item-meta">
+                            <span><i class="fas fa-calendar"></i> Expires: April 5, 2025</span>
+                            <span><i class="fas fa-weight"></i> Quantity: 5 servings</span>
+                        </div>
+                        <div class="food-item-actions">
+                            <button class="btn btn-sm btn-primary purchase-btn" data-meal-id="1">Purchase</button>
+                            <button class="btn btn-sm btn-outline view-details-btn" data-meal-id="1">Details</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="food-item-card">
+                    <div class="food-item-image">
+                        <div class="placeholder-image">
+                            <i class="fas fa-utensils"></i>
+                        </div>
+                        <span class="food-item-price">₹80</span>
+                    </div>
+                    <div class="food-item-details">
+                        <h4 class="food-item-title">Dal Makhani</h4>
+                        <p class="food-item-description">Creamy black lentils slow-cooked with butter and spices.</p>
+                        <div class="food-item-meta">
+                            <span><i class="fas fa-calendar"></i> Expires: April 6, 2025</span>
+                            <span><i class="fas fa-weight"></i> Quantity: 3 servings</span>
+                        </div>
+                        <div class="food-item-actions">
+                            <button class="btn btn-sm btn-primary purchase-btn" data-meal-id="2">Purchase</button>
+                            <button class="btn btn-sm btn-outline view-details-btn" data-meal-id="2">Details</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="food-item-card">
+                    <div class="food-item-image">
+                        <div class="placeholder-image">
+                            <i class="fas fa-utensils"></i>
+                        </div>
+                        <span class="food-item-price">₹150</span>
+                    </div>
+                    <div class="food-item-details">
+                        <h4 class="food-item-title">Paneer Butter Masala</h4>
+                        <p class="food-item-description">Cottage cheese cubes in a rich tomato and butter gravy.</p>
+                        <div class="food-item-meta">
+                            <span><i class="fas fa-calendar"></i> Expires: April 5, 2025</span>
+                            <span><i class="fas fa-weight"></i> Quantity: 4 servings</span>
+                        </div>
+                        <div class="food-item-actions">
+                            <button class="btn btn-sm btn-primary purchase-btn" data-meal-id="3">Purchase</button>
+                            <button class="btn btn-sm btn-outline view-details-btn" data-meal-id="3">Details</button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
         
         <div class="dashboard-card">
             <h3>My Purchase History</h3>
             <div class="purchase-history">
-                {% if my_requests %}
-                    {% for request in my_requests %}
-                        <div class="purchase-card">
-                            <div class="purchase-header">
-                                <h4 class="purchase-title">{{ request.food_name }}</h4>
-                                <span class="purchase-date">{{ request.created_at.strftime('%d %b %Y, %H:%M') }}</span>
-                            </div>
-                            <div class="purchase-details">
-                                <p><strong>Quantity:</strong> {{ request.quantity }}</p>
-                                <p><strong>Price:</strong> ₹{{ request.price }}</p>
-                                <p><strong>Pickup Address:</strong> {{ request.pickup_address }}</p>
-                                <p><strong>Status:</strong> <span class="purchase-status status-{{ request.status }}">{{ request.status|capitalize }}</span></p>
-                                {% if request.status == 'accepted' or request.status == 'completed' %}
-                                    <p><strong>Seller:</strong> {{ request.seller }}</p>
-                                {% endif %}
-                                {% if request.status == 'completed' %}
-                                    <p><strong>Pickup Date:</strong> {{ request.pickup_date }}</p>
-                                {% endif %}
-                                {% if request.status == 'pending' %}
-                                    <button class="btn btn-sm btn-outline cancel-purchase-btn" data-request-id="{{ request._id }}">Cancel</button>
-                                {% endif %}
-                            </div>
-                        </div>
-                    {% endfor %}
-                {% else %}
-                    <div class="empty-state">
-                        <div class="empty-icon">
-                            <i class="fas fa-receipt"></i>
-                        </div>
-                        <h4>No Purchase History</h4>
-                        <p>You haven't made any purchases yet. Start by purchasing available food items.</p>
-                        <a href="{{ url_for('purchase_food') }}" class="btn btn-primary">Purchase Food</a>
+                <!-- Hardcoded purchase history for demonstration -->
+                <div class="purchase-card">
+                    <div class="purchase-header">
+                        <h4 class="purchase-title">Masala Dosa</h4>
+                        <span class="purchase-date">03 Apr 2025, 14:30</span>
                     </div>
-                {% endif %}
+                    <div class="purchase-details">
+                        <p><strong>Quantity:</strong> 2</p>
+                        <p><strong>Price:</strong> ₹110</p>
+                        <p><strong>Pickup Address:</strong> 123 East Street, City</p>
+                        <p><strong>Status:</strong> <span class="purchase-status status-completed">Completed</span></p>
+                        <p><strong>Seller:</strong> Community Kitchen East</p>
+                        <p><strong>Pickup Date:</strong> April 3, 2025</p>
+                    </div>
+                </div>
+                
+                <div class="purchase-card">
+                    <div class="purchase-header">
+                        <h4 class="purchase-title">Rajma Chawal</h4>
+                        <span class="purchase-date">02 Apr 2025, 10:15</span>
+                    </div>
+                    <div class="purchase-details">
+                        <p><strong>Quantity:</strong> 3</p>
+                        <p><strong>Price:</strong> ₹100</p>
+                        <p><strong>Pickup Address:</strong> 456 West Avenue, City</p>
+                        <p><strong>Status:</strong> <span class="purchase-status status-accepted">Accepted</span></p>
+                        <p><strong>Seller:</strong> Community Kitchen West</p>
+                    </div>
+                </div>
+                
+                <div class="purchase-card">
+                    <div class="purchase-header">
+                        <h4 class="purchase-title">Chole Bhature</h4>
+                        <span class="purchase-date">01 Apr 2025, 16:45</span>
+                    </div>
+                    <div class="purchase-details">
+                        <p><strong>Quantity:</strong> 2</p>
+                        <p><strong>Price:</strong> ₹90</p>
+                        <p><strong>Pickup Address:</strong> 789 North Road, City</p>
+                        <p><strong>Status:</strong> <span class="purchase-status status-pending">Pending</span></p>
+                        <button class="btn btn-sm btn-outline cancel-purchase-btn" data-request-id="3">Cancel</button>
+                    </div>
+                </div>
             </div>
         </div>
         
@@ -185,8 +221,6 @@
     let userMarker;
     let sellerMarkers = [];
     let userPosition;
-    let directionsService;
-    let directionsRenderer;
     
     function initMap() {
         // Default center (will be updated with user's location)
@@ -198,64 +232,51 @@
             maxZoom: 18,
         }).addTo(map);
         
-        // Try to get user's current location
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                (position) => {
-                    userPosition = {
-                        lat: position.coords.latitude,
-                        lng: position.coords.longitude
-                    };
-                    
-                    map.setView([userPosition.lat, userPosition.lng], 12);
-                    
-                    // Create marker for user's position
-                    userMarker = L.marker([userPosition.lat, userPosition.lng], {
-                        icon: L.icon({
-                            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
-                            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-                            iconSize: [25, 41],
-                            iconAnchor: [12, 41],
-                            popupAnchor: [1, -34],
-                            shadowSize: [41, 41]
-                        })
-                    }).addTo(map);
-                    userMarker.bindPopup("Your Location").openPopup();
-                    
-                    // Add sellers to map
-                    addSellersToMap();
-                },
-                (error) => {
-                    console.error("Error getting location:", error);
-                    addSellersToMap();
-                }
-            );
-        } else {
-            console.error("Geolocation is not supported by this browser.");
-            addSellersToMap();
-        }
+        // Add sellers to map
+        addSellersToMap();
     }
     
     function addSellersToMap() {
-        // Example seller locations
+        // Hardcoded seller locations for demonstration
         const sellers = [
-            { name: "Community Kitchen East", lat: 20.5937, lng: 78.9629 },
-            { name: "Community Kitchen West", lat: 20.5837, lng: 78.9529 },
-            { name: "Community Kitchen North", lat: 20.6037, lng: 78.9729 }
+            {
+                name: 'Community Kitchen East',
+                lat: 20.5937,
+                lng: 78.9629 + 0.02,
+                address: '123 East Street, City',
+                items: 5
+            },
+            {
+                name: 'Community Kitchen West',
+                lat: 20.5937 - 0.01,
+                lng: 78.9629 - 0.02,
+                address: '456 West Avenue, City',
+                items: 3
+            },
+            {
+                name: 'Community Kitchen North',
+                lat: 20.5937 + 0.015,
+                lng: 78.9629 - 0.01,
+                address: '789 North Road, City',
+                items: 7
+            }
         ];
         
+        // Add seller markers
         sellers.forEach(seller => {
-            const marker = L.marker([seller.lat, seller.lng], {
-                icon: L.icon({
-                    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
-                    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-                    iconSize: [25, 41],
-                    iconAnchor: [12, 41],
-                    popupAnchor: [1, -34],
-                    shadowSize: [41, 41]
-                })
-            }).addTo(map);
-            marker.bindPopup(seller.name);
+            const sellerIcon = L.icon({
+                iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+                shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+                iconSize: [25, 41],
+                iconAnchor: [12, 41],
+                popupAnchor: [1, -34],
+                shadowSize: [41, 41]
+            });
+            
+            const marker = L.marker([seller.lat, seller.lng], {icon: sellerIcon})
+                .addTo(map)
+                .bindPopup(`<strong>${seller.name}</strong><br>${seller.address}<br>Available Items: ${seller.items}`);
+            
             sellerMarkers.push(marker);
         });
     }
@@ -266,46 +287,17 @@
             const lat = parseFloat(this.getAttribute('data-lat'));
             const lng = parseFloat(this.getAttribute('data-lng'));
             
-            if (userPosition) {
-                // Open directions in Google Maps
-                window.open(`https://www.google.com/maps/dir/?api=1&origin=${userPosition.lat},${userPosition.lng}&destination=${lat},${lng}`, '_blank');
-            } else {
-                alert("Your location is not available. Please enable location services.");
-            }
+            // Open in Google Maps
+            const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+            window.open(url, '_blank');
         });
     });
-    
-    // Initialize stats
-    function initStats() {
-        // Count pending and completed purchases
-        const purchases = document.querySelectorAll('.purchase-card');
-        let pending = 0;
-        let completed = 0;
-        let savedAmount = 0;
-        
-        purchases.forEach(purchase => {
-            const status = purchase.querySelector('.purchase-status').textContent.toLowerCase();
-            if (status === 'pending') {
-                pending++;
-            } else if (status === 'completed') {
-                completed++;
-                // Calculate saved amount (example: 30% off retail price)
-                const priceText = purchase.querySelector('p:nth-child(2)').textContent;
-                const price = parseFloat(priceText.replace(/[^0-9.]/g, ''));
-                savedAmount += price * 0.3;
-            }
-        });
-        
-        document.getElementById('pendingPurchases').textContent = pending;
-        document.getElementById('completedPurchases').textContent = completed;
-        document.getElementById('savedAmount').textContent = '₹' + savedAmount.toFixed(2);
-    }
     
     // Handle purchase button clicks
     document.querySelectorAll('.purchase-btn').forEach(button => {
         button.addEventListener('click', function() {
             const mealId = this.getAttribute('data-meal-id');
-            window.location.href = `/purchase-food?meal_id=${mealId}`;
+            window.location.href = "{{ url_for('purchase_food') }}";
         });
     });
     
@@ -316,70 +308,140 @@
             const modal = document.getElementById('foodItemModal');
             const modalContent = document.getElementById('modalContent');
             
-            // Example content - in a real app, you would fetch this from the server
-            modalContent.innerHTML = `
-                <h3>Food Item Details</h3>
-                <div class="food-details">
-                    <img src="/static/images/food-placeholder.jpg" alt="Food Item">
-                    <div class="details-content">
-                        <h4>Food Item Name</h4>
-                        <p><strong>Price:</strong> ₹50</p>
-                        <p><strong>Description:</strong> Delicious food item description goes here.</p>
-                        <p><strong>Quantity:</strong> 2 servings</p>
-                        <p><strong>Expiry Date:</strong> 05 Apr 2025</p>
-                        <p><strong>Seller:</strong> Community Kitchen East</p>
-                        <p><strong>Nutritional Info:</strong> Protein: 15g, Carbs: 30g, Fat: 10g</p>
-                        <button class="btn btn-primary purchase-btn" data-meal-id="${mealId}">Purchase Now</button>
+            // Example content for the modal
+            let content = '';
+            
+            if (mealId === '1') {
+                content = `
+                    <div class="food-detail-modal">
+                        <h3>Vegetable Biryani</h3>
+                        <div class="food-detail-image">
+                            <div class="placeholder-image">
+                                <i class="fas fa-utensils"></i>
+                            </div>
+                        </div>
+                        <div class="food-detail-info">
+                            <p><strong>Description:</strong> Fragrant basmati rice cooked with mixed vegetables and aromatic spices.</p>
+                            <p><strong>Price:</strong> ₹120</p>
+                            <p><strong>Quantity:</strong> 5 servings</p>
+                            <p><strong>Expiry Date:</strong> April 5, 2025</p>
+                            <p><strong>Seller:</strong> Community Kitchen East</p>
+                            <p><strong>Location:</strong> 123 East Street, City</p>
+                            
+                            <div class="nutrition-info">
+                                <h4>Nutritional Information</h4>
+                                <ul>
+                                    <li>Calories: 350 kcal per serving</li>
+                                    <li>Protein: 8g</li>
+                                    <li>Carbohydrates: 65g</li>
+                                    <li>Fat: 7g</li>
+                                    <li>Fiber: 4g</li>
+                                </ul>
+                            </div>
+                            
+                            <div class="food-detail-actions">
+                                <a href="{{ url_for('purchase_food') }}" class="btn btn-primary">Purchase</a>
+                            </div>
+                        </div>
                     </div>
-                </div>
-            `;
+                `;
+            } else if (mealId === '2') {
+                content = `
+                    <div class="food-detail-modal">
+                        <h3>Dal Makhani</h3>
+                        <div class="food-detail-image">
+                            <div class="placeholder-image">
+                                <i class="fas fa-utensils"></i>
+                            </div>
+                        </div>
+                        <div class="food-detail-info">
+                            <p><strong>Description:</strong> Creamy black lentils slow-cooked with butter and spices.</p>
+                            <p><strong>Price:</strong> ₹80</p>
+                            <p><strong>Quantity:</strong> 3 servings</p>
+                            <p><strong>Expiry Date:</strong> April 6, 2025</p>
+                            <p><strong>Seller:</strong> Community Kitchen West</p>
+                            <p><strong>Location:</strong> 456 West Avenue, City</p>
+                            
+                            <div class="nutrition-info">
+                                <h4>Nutritional Information</h4>
+                                <ul>
+                                    <li>Calories: 280 kcal per serving</li>
+                                    <li>Protein: 14g</li>
+                                    <li>Carbohydrates: 35g</li>
+                                    <li>Fat: 10g</li>
+                                    <li>Fiber: 8g</li>
+                                </ul>
+                            </div>
+                            
+                            <div class="food-detail-actions">
+                                <a href="{{ url_for('purchase_food') }}" class="btn btn-primary">Purchase</a>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else if (mealId === '3') {
+                content = `
+                    <div class="food-detail-modal">
+                        <h3>Paneer Butter Masala</h3>
+                        <div class="food-detail-image">
+                            <div class="placeholder-image">
+                                <i class="fas fa-utensils"></i>
+                            </div>
+                        </div>
+                        <div class="food-detail-info">
+                            <p><strong>Description:</strong> Cottage cheese cubes in a rich tomato and butter gravy.</p>
+                            <p><strong>Price:</strong> ₹150</p>
+                            <p><strong>Quantity:</strong> 4 servings</p>
+                            <p><strong>Expiry Date:</strong> April 5, 2025</p>
+                            <p><strong>Seller:</strong> Community Kitchen North</p>
+                            <p><strong>Location:</strong> 789 North Road, City</p>
+                            
+                            <div class="nutrition-info">
+                                <h4>Nutritional Information</h4>
+                                <ul>
+                                    <li>Calories: 320 kcal per serving</li>
+                                    <li>Protein: 18g</li>
+                                    <li>Carbohydrates: 22g</li>
+                                    <li>Fat: 18g</li>
+                                    <li>Fiber: 3g</li>
+                                </ul>
+                            </div>
+                            
+                            <div class="food-detail-actions">
+                                <a href="{{ url_for('purchase_food') }}" class="btn btn-primary">Purchase</a>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
             
-            modal.style.display = "block";
-            
-            // Add event listener to the purchase button in the modal
-            modalContent.querySelector('.purchase-btn').addEventListener('click', function() {
-                window.location.href = `/purchase-food?meal_id=${mealId}`;
-            });
+            modalContent.innerHTML = content;
+            modal.style.display = 'block';
         });
     });
     
-    // Close modal when clicking the close button
+    // Handle modal close
     document.querySelector('.close-modal').addEventListener('click', function() {
-        document.getElementById('foodItemModal').style.display = "none";
+        document.getElementById('foodItemModal').style.display = 'none';
     });
     
-    // Close modal when clicking outside the modal content
-    window.addEventListener('click', function(event) {
-        const modal = document.getElementById('foodItemModal');
-        if (event.target === modal) {
-            modal.style.display = "none";
-        }
+    // Handle view seller button clicks
+    document.querySelectorAll('.view-seller').forEach(button => {
+        button.addEventListener('click', function() {
+            const seller = this.getAttribute('data-seller');
+            window.location.href = "{{ url_for('purchase_food') }}";
+        });
     });
     
     // Handle cancel purchase button clicks
     document.querySelectorAll('.cancel-purchase-btn').forEach(button => {
         button.addEventListener('click', function() {
             const requestId = this.getAttribute('data-request-id');
-            if (confirm('Are you sure you want to cancel this purchase?')) {
-                fetch(`/cancel-purchase/${requestId}`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    }
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        alert('Purchase cancelled successfully');
-                        location.reload();
-                    } else {
-                        alert('Failed to cancel purchase: ' + data.message);
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('An error occurred while cancelling the purchase');
-                });
+            if (confirm('Are you sure you want to cancel this purchase request?')) {
+                // In a real application, this would make an AJAX request to cancel
+                alert('Purchase request cancelled successfully!');
+                // Reload the page or update the UI
+                this.closest('.purchase-card').remove();
             }
         });
     });
@@ -387,7 +449,6 @@
     // Initialize when the page loads
     window.onload = function() {
         initMap();
-        initStats();
     };
 </script>
 {% endblock %}

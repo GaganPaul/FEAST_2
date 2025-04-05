@@ -33,7 +33,7 @@ app.config['ALLOWED_EXTENSIONS'] = {'jpg', 'jpeg', 'png', 'gif'}
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 # Groq API configuration
-GROQ_API_KEY = "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"
+GROQ_API_KEY = ""
 GROQ_VISION_MODEL = "llama-3.2-90b-vision-preview"
 GROQ_TEXT_MODEL = "llama-3.3-70b-versatile"
 
@@ -442,6 +442,7 @@ def register():
                     'name': request.form['name'],
                     'phone': request.form['phone'],
                     'address': request.form['address'],
+                    'preferred_payment': request.form['preferred_payment']
                 })
             
             # Insert the user

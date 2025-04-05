@@ -136,44 +136,134 @@
                 <div class="food-items-list">
                     <h3>Available Food Items</h3>
                     
-                    {% if meal_plans %}
-                        <div class="food-items-grid">
-                            {% for meal in meal_plans %}
-                                <div class="food-item-card">
-                                    <div class="food-item-image">
-                                        {% if meal.image_url %}
-                                            <img src="{{ meal.image_url }}" alt="{{ meal.name }}">
-                                        {% else %}
-                                            <div class="placeholder-image">
-                                                <i class="fas fa-utensils"></i>
-                                            </div>
-                                        {% endif %}
-                                        <span class="food-item-price">₹{{ meal.price }}</span>
-                                    </div>
-                                    <div class="food-item-details">
-                                        <h4 class="food-item-title">{{ meal.name }}</h4>
-                                        <p class="food-item-description">{{ meal.description }}</p>
-                                        <div class="food-item-meta">
-                                            <span><i class="fas fa-calendar"></i> Expires: {{ meal.expiry_date }}</span>
-                                            <span><i class="fas fa-weight"></i> Quantity: {{ meal.quantity }}</span>
-                                        </div>
-                                        <div class="food-item-actions">
-                                            <a href="{{ url_for('purchase_food', meal_id=meal._id) }}" class="btn btn-sm btn-primary">Purchase</a>
-                                        </div>
-                                    </div>
+                    <!-- Hardcoded food items for demonstration -->
+                    <div class="food-items-grid">
+                        <!-- Item 1 -->
+                        <div class="food-item-card">
+                            <div class="food-item-image">
+                                <div class="placeholder-image">
+                                    <i class="fas fa-utensils"></i>
                                 </div>
-                            {% endfor %}
-                        </div>
-                    {% else %}
-                        <div class="empty-state">
-                            <div class="empty-icon">
-                                <i class="fas fa-shopping-basket"></i>
+                                <span class="food-item-price">₹120</span>
                             </div>
-                            <h4>No Food Items Available</h4>
-                            <p>There are currently no food items available for purchase. Please check back later.</p>
-                            <a href="{{ url_for('buyer_dashboard') }}" class="btn btn-primary">Back to Dashboard</a>
+                            <div class="food-item-details">
+                                <h4 class="food-item-title">Vegetable Biryani</h4>
+                                <p class="food-item-description">Fragrant basmati rice cooked with mixed vegetables and aromatic spices.</p>
+                                <div class="food-item-meta">
+                                    <span><i class="fas fa-calendar"></i> Expires: April 5, 2025</span>
+                                    <span><i class="fas fa-weight"></i> Quantity: 5 servings</span>
+                                </div>
+                                <div class="food-item-actions">
+                                    <a href="{{ url_for('purchase_food') }}" class="btn btn-sm btn-primary">Purchase</a>
+                                </div>
+                            </div>
                         </div>
-                    {% endif %}
+                        
+                        <!-- Item 2 -->
+                        <div class="food-item-card">
+                            <div class="food-item-image">
+                                <div class="placeholder-image">
+                                    <i class="fas fa-utensils"></i>
+                                </div>
+                                <span class="food-item-price">₹80</span>
+                            </div>
+                            <div class="food-item-details">
+                                <h4 class="food-item-title">Dal Makhani</h4>
+                                <p class="food-item-description">Creamy black lentils slow-cooked with butter and spices.</p>
+                                <div class="food-item-meta">
+                                    <span><i class="fas fa-calendar"></i> Expires: April 6, 2025</span>
+                                    <span><i class="fas fa-weight"></i> Quantity: 3 servings</span>
+                                </div>
+                                <div class="food-item-actions">
+                                    <a href="{{ url_for('purchase_food') }}" class="btn btn-sm btn-primary">Purchase</a>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Item 3 -->
+                        <div class="food-item-card">
+                            <div class="food-item-image">
+                                <div class="placeholder-image">
+                                    <i class="fas fa-utensils"></i>
+                                </div>
+                                <span class="food-item-price">₹150</span>
+                            </div>
+                            <div class="food-item-details">
+                                <h4 class="food-item-title">Paneer Butter Masala</h4>
+                                <p class="food-item-description">Cottage cheese cubes in a rich tomato and butter gravy.</p>
+                                <div class="food-item-meta">
+                                    <span><i class="fas fa-calendar"></i> Expires: April 5, 2025</span>
+                                    <span><i class="fas fa-weight"></i> Quantity: 4 servings</span>
+                                </div>
+                                <div class="food-item-actions">
+                                    <a href="{{ url_for('purchase_food') }}" class="btn btn-sm btn-primary">Purchase</a>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Item 4 -->
+                        <div class="food-item-card">
+                            <div class="food-item-image">
+                                <div class="placeholder-image">
+                                    <i class="fas fa-utensils"></i>
+                                </div>
+                                <span class="food-item-price">₹90</span>
+                            </div>
+                            <div class="food-item-details">
+                                <h4 class="food-item-title">Chole Bhature</h4>
+                                <p class="food-item-description">Spicy chickpea curry with deep-fried bread.</p>
+                                <div class="food-item-meta">
+                                    <span><i class="fas fa-calendar"></i> Expires: April 7, 2025</span>
+                                    <span><i class="fas fa-weight"></i> Quantity: 2 servings</span>
+                                </div>
+                                <div class="food-item-actions">
+                                    <a href="{{ url_for('purchase_food') }}" class="btn btn-sm btn-primary">Purchase</a>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Item 5 -->
+                        <div class="food-item-card">
+                            <div class="food-item-image">
+                                <div class="placeholder-image">
+                                    <i class="fas fa-utensils"></i>
+                                </div>
+                                <span class="food-item-price">₹110</span>
+                            </div>
+                            <div class="food-item-details">
+                                <h4 class="food-item-title">Masala Dosa</h4>
+                                <p class="food-item-description">Crispy rice pancake filled with spiced potato filling.</p>
+                                <div class="food-item-meta">
+                                    <span><i class="fas fa-calendar"></i> Expires: April 5, 2025</span>
+                                    <span><i class="fas fa-weight"></i> Quantity: 6 servings</span>
+                                </div>
+                                <div class="food-item-actions">
+                                    <a href="{{ url_for('purchase_food') }}" class="btn btn-sm btn-primary">Purchase</a>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Item 6 -->
+                        <div class="food-item-card">
+                            <div class="food-item-image">
+                                <div class="placeholder-image">
+                                    <i class="fas fa-utensils"></i>
+                                </div>
+                                <span class="food-item-price">₹100</span>
+                            </div>
+                            <div class="food-item-details">
+                                <h4 class="food-item-title">Rajma Chawal</h4>
+                                <p class="food-item-description">Kidney bean curry served with steamed rice.</p>
+                                <div class="food-item-meta">
+                                    <span><i class="fas fa-calendar"></i> Expires: April 6, 2025</span>
+                                    <span><i class="fas fa-weight"></i> Quantity: 4 servings</span>
+                                </div>
+                                <div class="food-item-actions">
+                                    <a href="{{ url_for('purchase_food') }}" class="btn btn-sm btn-primary">Purchase</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             {% endif %}
         </div>
@@ -184,17 +274,15 @@
 {% block scripts %}
 <script>
     // Update order summary when quantity changes
-    document.getElementById('quantity').addEventListener('input', function() {
+    document.getElementById('quantity') && document.getElementById('quantity').addEventListener('input', function() {
         const quantity = parseInt(this.value) || 1;
         {% if meal %}
         const price = {{ meal.price }};
-        {% else %}
-        const price = 0;
-        {% endif %}
         const total = price * quantity;
         
         document.getElementById('summary-quantity').textContent = quantity;
         document.getElementById('summary-total').textContent = '₹' + total;
+        {% endif %}
     });
     
     // Set minimum date for pickup to today
@@ -202,28 +290,16 @@
     const yyyy = today.getFullYear();
     const mm = String(today.getMonth() + 1).padStart(2, '0');
     const dd = String(today.getDate()).padStart(2, '0');
-    const todayStr = `${yyyy}-${mm}-${dd}`;
+    const todayFormatted = `${yyyy}-${mm}-${dd}`;
     
-    document.getElementById('pickup_date').setAttribute('min', todayStr);
-    
-    // Set maximum date for pickup to expiry date
-    {% if meal %}
-    const expiryDate = "{{ meal.expiry_date }}";
-    document.getElementById('pickup_date').setAttribute('max', expiryDate);
-    {% endif %}
-    
-    // Set default pickup date to tomorrow
-    const tomorrow = new Date();
-    tomorrow.setDate(today.getDate() + 1);
-    const tomorrowYyyy = tomorrow.getFullYear();
-    const tomorrowMm = String(tomorrow.getMonth() + 1).padStart(2, '0');
-    const tomorrowDd = String(tomorrow.getDate()).padStart(2, '0');
-    const tomorrowStr = `${tomorrowYyyy}-${tomorrowMm}-${tomorrowDd}`;
-    
-    document.getElementById('pickup_date').value = tomorrowStr;
-    
-    // Set default pickup time range
-    document.getElementById('pickup_time_start').value = '10:00';
-    document.getElementById('pickup_time_end').value = '18:00';
+    if (document.getElementById('pickup_date')) {
+        document.getElementById('pickup_date').min = todayFormatted;
+        
+        // Set default pickup time range
+        if (document.getElementById('pickup_time_start') && document.getElementById('pickup_time_end')) {
+            document.getElementById('pickup_time_start').value = '10:00';
+            document.getElementById('pickup_time_end').value = '18:00';
+        }
+    }
 </script>
 {% endblock %}
